@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.onosproject.oneping;
+package org.onosproject.severalping;
 
 import com.google.common.collect.HashMultimap;
 import org.osgi.service.component.annotations.Activate;
@@ -51,6 +51,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.HashMap;
 
 import static org.onosproject.net.flow.FlowRuleEvent.Type.RULE_REMOVED;
 import static org.onosproject.net.flow.criteria.Criterion.Type.ETH_SRC;
@@ -65,10 +66,10 @@ public class AppComponent {
 
     private static Logger log = LoggerFactory.getLogger(AppComponent.class);
 
-    private static final String MSG_PINGED_ONCE =
-            "Thank you, Vasili. One ping from {} to {} received by {}";
-    private static final String MSG_PINGED_TWICE =
-            "What are you doing, Vasili?! I said one ping only!!! " +
+    private static final String MSG_PINGED_OK =
+            "Thank you, Vasili. Ping {}/{} received from {} to {} received by {}";
+    private static final String MSG_PINGED_LIMIT =
+            "What are you doing, Vasili?! Limit of {} pings reached!!! " +
                     "Ping from {} to {} has already been received by {};" +
                     " 60 second ban has been issued";
     private static final String MSG_PING_REENABLED =
@@ -77,6 +78,8 @@ public class AppComponent {
     private static final int PRIORITY = 128;
     private static final int DROP_PRIORITY = 129;
     private static final int TIMEOUT_SEC = 60; // seconds
+
+    private static final int LIM_PINGS = 3; // maximum number of pings allowed
 
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected CoreService coreService;
@@ -100,8 +103,8 @@ public class AppComponent {
             .build();
 
     // Means to track detected pings from each device on a temporary basis
-    private final HashMultimap<DeviceId, PingRecord> pings = HashMultimap.create();
-    private final Timer timer = new Timer("oneping-sweeper");
+    private final HashMap<PingRecord,Integer> pings = new HashMap<PingRecord,Integer>();
+    private final Timer timer = new Timer("severalping-sweeper");
 
     public AppComponent()
     {
@@ -110,7 +113,7 @@ public class AppComponent {
 
     @Activate
     public void activate() {
-        appId = coreService.registerApplication("org.onosproject.oneping",
+        appId = coreService.registerApplication("org.onosproject.severalping",
                                                 () -> log.info("Periscope down."));
         packetService.addProcessor(packetProcessor, PRIORITY);
         flowRuleService.addListener(flowListener);
@@ -132,19 +135,23 @@ public class AppComponent {
         DeviceId deviceId = context.inPacket().receivedFrom().deviceId();
         MacAddress src = eth.getSourceMAC();
         MacAddress dst = eth.getDestinationMAC();
-        PingRecord ping = new PingRecord(src, dst);
-        boolean pinged = pings.get(deviceId).contains(ping);
+        PingRecord ping = new PingRecord(deviceId, src, dst);
+        Integer num_pings = pings.get(ping);
 
-        if (pinged) {
-            // Two pings detected; ban further pings and block packet-out
-            log.warn(MSG_PINGED_TWICE, src, dst, deviceId);
+        if (num_pings==null) {
+            num_pings=0;
+        }
+        if (num_pings<LIM_PINGS) {
+            // Less pings than allowed detected; track it for the next minute
+            log.info(MSG_PINGED_OK, num_pings+1, LIM_PINGS, src, dst, deviceId);
+            pings.put(ping,num_pings+1);
+            timer.schedule(new PingPruner(ping), TIMEOUT_SEC * 1000);
+        }
+        else {
+            // More pings than allowed detected; ban further pings and block packet-out
+            log.warn(MSG_PINGED_LIMIT, LIM_PINGS, src, dst, deviceId);
             banPings(deviceId, src, dst);
             context.block();
-        } else {
-            // One ping detected; track it for the next minute
-            log.info(MSG_PINGED_ONCE, src, dst, deviceId);
-            pings.put(deviceId, ping);
-            timer.schedule(new PingPruner(deviceId, ping), TIMEOUT_SEC * 1000);
         }
     }
 
@@ -186,17 +193,19 @@ public class AppComponent {
 
     // Record of a ping between two end-station MAC addresses
     private class PingRecord {
+        private final DeviceId deviceId;
         private final MacAddress src;
         private final MacAddress dst;
 
-        PingRecord(MacAddress src, MacAddress dst) {
+        PingRecord(DeviceId deviceId, MacAddress src, MacAddress dst) {
+            this.deviceId = deviceId;
             this.src = src;
             this.dst = dst;
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(src, dst);
+            return Objects.hash(deviceId,src, dst);
         }
 
         @Override
@@ -208,23 +217,31 @@ public class AppComponent {
                 return false;
             }
             final PingRecord other = (PingRecord) obj;
-            return Objects.equals(this.src, other.src) && Objects.equals(this.dst, other.dst);
+            return Objects.equals(this.deviceId, other.deviceId) && Objects.equals(this.src, other.src) && Objects.equals(this.dst, other.dst);
         }
     }
 
     // Prunes the given ping record from the specified device.
     private class PingPruner extends TimerTask {
-        private final DeviceId deviceId;
         private final PingRecord ping;
 
-        public PingPruner(DeviceId deviceId, PingRecord ping) {
-            this.deviceId = deviceId;
+        public PingPruner(PingRecord ping) {
             this.ping = ping;
         }
 
         @Override
         public void run() {
-            pings.remove(deviceId, ping);
+           Integer num_pings = pings.get(ping);
+
+           if (num_pings!=null) {
+               if(num_pings==0)
+               {
+                   pings.remove(ping);
+               }
+               else {
+                   pings.put(ping,num_pings-1);
+               }
+           }
         }
     }
 
