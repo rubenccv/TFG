@@ -29,7 +29,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <onos.version>2.0.0</onos.version>
         <onos.app.name>org.onosproject.banstatsshow</onos.app.name>
-        <onos.app.title>Show Statistics</onos.app.title>
+        <onos.app.title>Ban Statistics</onos.app.title>
         <onos.app.origin>UVa</onos.app.origin>
         <onos.app.category>default</onos.app.category>
         <onos.app.url>http://onosproject.org</onos.app.url>
