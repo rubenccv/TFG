@@ -54,7 +54,9 @@ import org.onosproject.net.flow.FlowRuleService;
 import org.onosproject.net.flow.TrafficSelector;
 import org.onosproject.net.flow.TrafficTreatment;
 import org.onosproject.net.flow.criteria.Criterion;
+import org.onosproject.net.flow.criteria.Criterion.Type;
 import org.onosproject.net.flow.criteria.EthCriterion;
+import org.onosproject.net.flow.criteria.PortCriterion;
 import org.onosproject.net.flowobjective.DefaultForwardingObjective;
 import org.onosproject.net.flowobjective.FlowObjectiveService;
 import org.onosproject.net.flowobjective.ForwardingObjective;
@@ -62,6 +64,9 @@ import org.onosproject.net.packet.PacketContext;
 import org.onosproject.net.packet.PacketPriority;
 import org.onosproject.net.packet.PacketProcessor;
 import org.onosproject.net.packet.PacketService;
+import static org.onosproject.net.flow.FlowRuleEvent.Type.RULE_REMOVED;
+import static org.onosproject.net.flow.criteria.Criterion.Type.IN_PHY_PORT;
+import org.onosproject.net.flow.criteria.ExtensionCriterion;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -87,6 +92,8 @@ public class AppComponent {
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected CoreService coreService;
     
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    protected FlowRuleService flowRuleService;
 
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected FlowObjectiveService flowObjectiveService;
@@ -97,10 +104,15 @@ public class AppComponent {
     private static final int DROP_PRIORITY = 129;
     
 
+    private final HashMap<TrafficRecord,Boolean> baneos = new HashMap<TrafficRecord,Boolean>();
+    
+    private final FlowRuleListener flowListener = new InternalFlowListener();
+    
     @Activate
     protected void activate() {
         appId = coreService.registerApplication("org.onosproject.banstatsshow",
                 () -> log.info("Periscope down."));
+        flowRuleService.addListener(flowListener); //Indicamos que empiece a escuchar por reglas (en este caso que borre lineas del HashMap)
         log.info("Started");
 
         TimerTask repeatedTask = new TimerTask() {
@@ -121,10 +133,12 @@ public class AppComponent {
                             log.info("portstat bytes sent: " + portstat.bytesSent());
                             //almacenamos en la estructura el puerto y los datos usados y restantes
                             long bytesAvailable = LIMIT_MB - portstat.bytesSent(); 
-                            //statsPorts s = new statsPorts(port.number(),portstat.bytesReceived(),bytesAvailable);
-                            //Si los bytes disponibles son 0 se banea ese puerto
-                            if(bytesAvailable<=0 && port.number().toLong()!=0) { //Hacemos que el puerto que comunica el ONOS con el switch no sea bloqueado 
+                            TrafficRecord ban = new TrafficRecord(d.id(),port.number());
+                          //Si los bytes disponibles son 0 se banea ese puerto
+                            
+                            if((bytesAvailable<=0) && (port.number().toLong()!=0) && (!baneos.containsKey(ban))) { //Hacemos que el puerto que comunica el ONOS con el switch no sea bloqueado 
                             	banTraffic(d.id(),port.number());
+                            	baneos.put(ban, true);
                             	log.info("You have reached the limit of data");
                             }
                         }
@@ -184,26 +198,69 @@ public class AppComponent {
                  .withTreatment(drop)
                  .withFlag(ForwardingObjective.Flag.VERSATILE)
                  .withPriority(DROP_PRIORITY)
-                 .makeTemporary(segundos)
+                 .makeTemporary(60*1)
                  .add());
     }
-    /*
-    //Creamos una estructura que almacene el numero de puerto, la cantidad de datos consumidos y los datos restantes que quedan
-    private class statsPorts{
+    
+    //Creamos una estructura que almacene el dispositivo, numero de puerto y un booleano donde almacenemos si el puerto esta baneado o no
+    private class TrafficRecord{
+    	private final DeviceId deviceId;
         private final PortNumber numport;
-        private final long bytesSent;
-        private final long bytesAvailable;
+        
 
-        statsPorts(PortNumber numport, long bytesSent,long bytesAvailable) {
-            this.numport = numport;
-            this.bytesSent = bytesSent;
-            this.bytesAvailable = bytesAvailable;        
+        TrafficRecord(DeviceId deviceId, PortNumber numport) {
+            this.deviceId = deviceId;
+        	this.numport = numport;
+
+        	
         }
-    }*/
+        
+        @Override
+        public int hashCode() {
+            return Objects.hash(deviceId,numport);
+        }
+
+        //Sobreescribimos el metodo equals para que no solo compare los identificadores de  objeto
+        //sino tambien si los atributos que contiene el objeto son iguales (en este caso el id y el numero de puerto
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) {
+                return true;
+            }
+            if (obj == null || getClass() != obj.getClass()) {
+                return false;
+            }
+            final TrafficRecord other = (TrafficRecord) obj;
+            return Objects.equals(this.deviceId, other.deviceId) && Objects.equals(this.numport, other.numport);
+        }
+        
+    }
 
     @Deactivate
     protected void deactivate() {
         timer.cancel();
+        flowRuleService.removeFlowRulesById(appId);
+        flowRuleService.removeListener(flowListener);
         log.info("Stopped");
     }
+    
+    
+    // Elimina del Hash Map aquellas lineas de las que ya ha pasado el tiempo 
+    private class InternalFlowListener implements FlowRuleListener {
+        @Override
+        public void event(FlowRuleEvent event) {
+            FlowRule flowRule = event.subject();
+            if (event.type() == RULE_REMOVED && flowRule.appId() == appId.id()) {
+                Criterion criterion = flowRule.selector().getCriterion(Type.IN_PORT);
+               PortNumber numport = ((PortCriterion) criterion).port();
+
+               DeviceId deviceId = event.subject().deviceId();
+               TrafficRecord ban = new TrafficRecord(deviceId,numport);
+               baneos.remove(ban);
+                log.warn("Reenabled link");
+            }
+        }
+    }
 }
+
+
