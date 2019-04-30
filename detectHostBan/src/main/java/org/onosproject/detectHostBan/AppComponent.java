@@ -38,9 +38,28 @@ import org.onosproject.net.Port;
 import org.onosproject.net.PortNumber;
 import org.onosproject.net.device.DeviceService;
 import org.onosproject.net.device.PortStatistics;
+import org.onosproject.net.flow.DefaultFlowRule;
+import org.onosproject.net.flow.DefaultTrafficSelector;
+import org.onosproject.net.flow.DefaultTrafficTreatment;
+import org.onosproject.net.flow.FlowRule;
+import org.onosproject.net.flow.FlowRule.Builder;
+import org.onosproject.net.flow.FlowRuleEvent;
+import org.onosproject.net.flow.FlowRuleListener;
+import org.onosproject.net.flow.FlowRuleService;
+import org.onosproject.net.flow.TrafficSelector;
+import org.onosproject.net.flow.TrafficTreatment;
+import org.onosproject.net.flow.criteria.Criterion;
+import org.onosproject.net.flow.criteria.EthCriterion;
+import org.onosproject.net.flowobjective.DefaultForwardingObjective;
+import org.onosproject.net.flowobjective.FlowObjectiveService;
+import org.onosproject.net.flowobjective.ForwardingObjective;
 import org.onosproject.net.host.HostProbingService;
 import org.onosproject.net.host.HostService;
 import org.onosproject.net.host.ProbeMode;
+
+import static org.onosproject.net.flow.FlowRuleEvent.Type.RULE_REMOVED;
+import static org.onosproject.net.flow.criteria.Criterion.Type.ETH_DST;
+import static org.onosproject.net.flow.criteria.Criterion.Type.ETH_SRC;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -77,11 +96,22 @@ public class AppComponent{
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected HostProbingService hostProbingService;
     
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    protected FlowObjectiveService flowObjectiveService;
+    
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    protected FlowRuleService flowRuleService;
+    
+   // private final FlowRuleListener flowListener = new InternalFlowListener();
+
+    
     private final HashMap<MacAddress,Long> hosts = new HashMap<MacAddress,Long>();    
 
-    protected Timer timer1;
-    protected Timer timer2;
+    protected Timer timer;
     public long LIMIT_MB = 1000000; //1MB de maximo de datos
+    private static final int DROP_PRIORITY = 129;
+    private int TIMEOUT_SEC = 30;
+
 
 
     @Activate
@@ -89,77 +119,136 @@ public class AppComponent{
         
         appId = coreService.registerApplication("org.onosproject.detectHostBan",
                 () -> log.info("Periscope down."));
+       // flowRuleService.addListener(flowListener);
         log.info("Started");
         
-
-              
-        //Obtenemos los hosts que estan conectados a nuestro dispositivos
-        TimerTask repeatedTask1 = new TimerTask() {
+        TimerTask repeatedTask= new TimerTask(){
         	public void run() {
-        		//Vemos si  los dispositivos conectados a nuestro ONOS estan activos
-                Iterable<Device> devices = deviceService.getDevices(); //Obtenemos los dispositivos controlados por el ONOS (en el primer ejemplo solo el openVSwitch)
-                
-                for (Device d: devices) {
-                	List<Port> ports = deviceService.getPorts(d.id());
-                	for(Port port : ports) {
-                	ConnectPoint connectPoint = new ConnectPoint(d.id(),port.number());
-                    Set<Host> setH = hostService.getConnectedHosts(connectPoint);
-                    Iterator<Host> aux = setH.iterator();
+        		
+        		Iterable<Host> setH = hostService.getHosts();
+        		
+        		for (Host h: setH) {
+        			MacAddress macHost = h.mac();
+        			
+        			Long oldData = hosts.get(macHost);
+        			if(oldData==null)
+        				oldData=0L;
+        			
+        			else if(oldData>=LIMIT_MB)
+        				return;
+        			
+        			PortStatistics stats = deviceService.getDeltaStatisticsForPort(h.location().deviceId(), h.location().port());
 
-                	log.error("Number of host connected is: " +hostService.getHostCount());
-                    while (aux.hasNext()) {
-                    	//En cada iteracion del bucle obtenemos un nuevo host de los conectados
-                    	Host h = aux.next();
-                    	MacAddress macHost = h.mac();
-                   
-                    	
-                    	PortStatistics stats = deviceService.getDeltaStatisticsForPort(d.id(), port.number());
-                    	
-                    	long bytesSent = stats.bytesSent();
-                    	long bytesReceived = stats.bytesReceived();
-                    	
-                    	long deltaStats = bytesSent + bytesReceived;
-                    	Long oldData = hosts.get(macHost);
-                    	if (oldData==null)
-                    		oldData=0L;
-                    	
-                    	Long totalData = deltaStats + oldData;
-                    	log.warn("Total statistics for MAC " +macHost+" are: " +totalData);
-                    	if(totalData>=LIMIT_MB) {
-                    		//Baneamos la MAC del dispositivo 1 minuto para que no pueda enviar ni recibir trafico
-                    	}
-                    	hosts.put(macHost, totalData);
-                  }
-                }
-              }        		
-        	}
-        };
-              
-        TimerTask repeatedTask2 = new TimerTask() {
-        	public void run() {
-              Iterable<Host> hosts =  hostService.getHosts();
-              for(Host h:hosts) {
-            	  ConnectPoint connectPoint = new ConnectPoint(h.location().deviceId(),h.location().port());
-            	  ProbeMode probeMode = ProbeMode.VERIFY;
-            	  hostProbingService.probeHost(h, connectPoint,probeMode);          		  
-              }
-        	}
-        };
+        			long bytesSent = stats.bytesSent();
+        			long bytesReceived = stats.bytesReceived();
+
+        			long deltaStats = bytesSent + bytesReceived;
+        			
+        			Long totalData = deltaStats + oldData;
+        		
+        			log.warn("Total statistics for MAC " +macHost+" are: " +totalData);
+
+        			//En el HashMap introducimos los datos acumulados que lleva la MAC asociada al host
+        			hosts.put(macHost, totalData); 
+        			
+        			//En caso de que los datos superen en total baneamos la mac del dispositivo
+        			if(totalData>=LIMIT_MB) {
+        				banPings(h.location().deviceId(),macHost);
+        			}
+        		}//Cierre del for
+        	}//Cierre del run
+        };//Cierre del TimerTask
         
-        timer1 = new Timer("Timer1");
-        timer2 = new Timer("Timer2");
+        timer = new Timer("Timer");
         long delay = 1000L; // We start polling statistics after 1 second
         long period = 1000L * 10L; // Every 10 seconds we get the statistics
-        timer1.scheduleAtFixedRate(repeatedTask1, delay, period);
-        timer2.scheduleAtFixedRate(repeatedTask2, delay, period);
-
-    }
+        timer.scheduleAtFixedRate(repeatedTask, delay, period);
+    }//Cierre del activate
 
     @Deactivate
     protected void deactivate() {
         cfgService.unregisterProperties(getClass(), false);
+        timer.cancel();
         log.info("Stopped");
     }
+    
+    
+    private void banPings(DeviceId deviceId, MacAddress src) {
+    	TrafficSelector selector = DefaultTrafficSelector.builder().matchEthSrc(src).build();
+        TrafficTreatment drop = DefaultTrafficTreatment.builder()
+                .drop().build();
+        
+        //Creamos la regla que limita el trafico para la MAC de origen
+        FlowRule rule1 = DefaultFlowRule.builder()
+        		.fromApp(appId)
+        		.forDevice(deviceId)
+        		.makePermanent()
+        		.withSelector(selector)
+        		.withPriority(DROP_PRIORITY)
+        		.withTreatment(drop)
+        		.build();
 
-  
+        
+        selector = DefaultTrafficSelector.builder().matchEthDst(src).build();
+
+        FlowRule rule2 = DefaultFlowRule.builder()
+        		.fromApp(appId)
+        		.forDevice(deviceId)
+        		.makePermanent()
+        		.withSelector(selector)
+        		.withPriority(DROP_PRIORITY)
+        		.withTreatment(drop)
+        		.build();
+
+        //Y las aplicamos 
+        flowRuleService.applyFlowRules(rule1,rule2);
+        
+       /* flowObjectiveService.forward(deviceId, DefaultForwardingObjective.builder()
+                .fromApp(appId)
+                .withSelector(selector)
+                .withTreatment(drop)
+                .withFlag(ForwardingObjective.Flag.VERSATILE)
+                .withPriority(DROP_PRIORITY)
+                .makeTemporary(30)
+                .add());*/
+    	
+
+		timer.schedule(new PingPruner(rule1,rule2), TIMEOUT_SEC * 1000);
+        
+		log.error("Baneo aplicado a la MAC: "+src);
+    }
+    
+   
+   /* private class InternalFlowListener implements FlowRuleListener {
+        @Override
+        public void event(FlowRuleEvent event) {
+            FlowRule flowRule = event.subject();
+            if (event.type() == RULE_REMOVED && flowRule.appId() == appId.id()) {
+                Criterion criterion = flowRule.selector().getCriterion(ETH_SRC);
+                MacAddress src = ((EthCriterion) criterion).mac();
+                hosts.put(src,0L);
+                log.warn("Baneo eliminado a la MAC: "+src);
+            }
+        }
+    }*/
+    
+ // Prunes the given ping record from the specified device.
+    private class PingPruner extends TimerTask {
+        private final FlowRule rule1;
+        private final FlowRule rule2;
+        
+        public PingPruner(FlowRule rule1, FlowRule rule2) {
+            this.rule1 = rule1;
+            this.rule2 = rule2;
+        }
+
+        @Override
+        public void run() {
+        	flowRuleService.removeFlowRules(rule1,rule2);
+            Criterion criterion = rule1.selector().getCriterion(ETH_SRC);
+            MacAddress src = ((EthCriterion) criterion).mac();
+        	hosts.put(src,0L);
+            log.warn("Baneo eliminado a la MAC: "+src);
+        }
+    }
 }

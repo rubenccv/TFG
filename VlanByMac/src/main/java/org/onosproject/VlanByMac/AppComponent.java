@@ -13,10 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.onosproject.detectHost;
+package org.onosproject.VlanByMac;
 
 
 import org.onlab.packet.MacAddress;
+import org.onlab.packet.VlanId;
 import org.onosproject.cfg.ComponentConfigService;
 import org.onosproject.net.ConnectPoint;
 import org.onosproject.net.Host;
@@ -38,13 +39,17 @@ import org.onosproject.net.Port;
 import org.onosproject.net.PortNumber;
 import org.onosproject.net.device.DeviceService;
 import org.onosproject.net.device.PortStatistics;
+import org.onosproject.net.flow.DefaultFlowRule;
 import org.onosproject.net.flow.DefaultTrafficSelector;
 import org.onosproject.net.flow.DefaultTrafficTreatment;
+import org.onosproject.net.flow.FlowRule;
 import org.onosproject.net.flow.FlowRuleService;
 import org.onosproject.net.flow.TrafficSelector;
 import org.onosproject.net.flow.TrafficTreatment;
 import org.onosproject.net.flowobjective.DefaultForwardingObjective;
 import org.onosproject.net.flowobjective.FlowObjectiveService;
+import org.onosproject.net.host.HostEvent;
+import org.onosproject.net.host.HostListener;
 import org.onosproject.net.host.HostProbingService;
 import org.onosproject.net.host.HostService;
 import org.onosproject.net.host.ProbeMode;
@@ -92,64 +97,84 @@ public class AppComponent{
 	@Reference(cardinality = ReferenceCardinality.MANDATORY)
 	protected FlowRuleService flowRuleService;
 
+	int priority = 129;
+    private final HashMap<MacAddress,Short> macVlanMap = new HashMap<MacAddress,Short>();    
+    
+    private final HashMap<MacAddress,FlowRule[]> macRuleMap = new HashMap<MacAddress,FlowRule[]>();    
 
-	protected Timer timer1;
-	protected Timer timer2;
-	int cont=0;
-
-	public Long LIMIT_MB = 1000000L; //1MB de maximo de datos
+    private final HostListener hostListener = new InternalHostListener();
 
 	@Activate
 	protected void activate() {
-
-		appId = coreService.registerApplication("org.onosproject.detectHost",
+		appId = coreService.registerApplication("org.onosproject.VlanByMac",
 				() -> log.info("Periscope down."));
 		log.info("Started");
+		hostService.addListener(hostListener);
 
-
-		//Obtenemos los hosts que estan conectados a nuestro dispositivos
-		TimerTask repeatedTask1 = new TimerTask() {
-			public void run() {
-				
-				//Vemos si  los dispositivos conectados a nuestro ONOS estan activos
-				log.error("Number of host connected is: " +hostService.getHostCount());
-        		
-				Iterable<Host> setH = hostService.getHosts();
-				cont=0;
-				for (Host h:setH) {
-					cont++;
-					log.info("Host "+cont+" whose MAC is: "+h.mac()+" is on port: "+h.location().port());
-				}			
-			}      		
-		};
-
-		TimerTask repeatedTask2 = new TimerTask() {
-			public void run() {
-				Iterable<Host> hosts =  hostService.getHosts();
-				for(Host h:hosts) {
-					ConnectPoint connectPoint = new ConnectPoint(h.location().elementId(),h.location().port());
-					ProbeMode probeMode = ProbeMode.VERIFY;
-					hostProbingService.probeHost(h, connectPoint,probeMode);
-				}
-			}
-		};
-
-		timer1 = new Timer("Timer1");
-		timer2 = new Timer("Timer2");
-		long delay = 1000L; // We start polling statistics after 1 second
-		long period = 1000L * 10L; // Every 10 seconds we get the statistics
-		timer1.scheduleAtFixedRate(repeatedTask1, delay, period);
-		timer2.scheduleAtFixedRate(repeatedTask2, 3*delay, period);
+		//Asignamos las VLAN al hashmap con las diferentes mac que tendremos en nuestra red
+		macVlanMap.put(MacAddress.valueOf("00:00:00:00:00:01"),(short)1);
+		macVlanMap.put(MacAddress.valueOf("00:00:00:00:00:02"),(short)1);
+		macVlanMap.put(MacAddress.valueOf("00:00:00:00:00:03"),(short)2);
+		macVlanMap.put(MacAddress.valueOf("00:00:00:00:00:04"),(short)2);
 
 	}
 
 	@Deactivate
 	protected void deactivate() {
-		cfgService.unregisterProperties(getClass(), false);
-		timer1.cancel();
-		timer2.cancel();
+		cfgService.unregisterProperties(getClass(), false);	
 		flowRuleService.removeFlowRulesById(appId);
 		log.info("Stopped");
 	}    
+	
+	private class InternalHostListener implements HostListener {
+    @Override
+    public void event(HostEvent event) {
+    	if(event.type()==HostEvent.Type.HOST_ADDED) {
+    		//Mirar el HashMap para crear una regla de flujo 
+    		//que el trafico de la direccion MAC del host añadido se le asigne la VLAN correspondiente
+    		log.warn("Host añadido");
+    		MacAddress macHost = event.subject().mac();
+    		
+    		VlanId VlanHost = VlanId.vlanId(macVlanMap.get(macHost));
+    		
+        	TrafficSelector selector1 = DefaultTrafficSelector.builder().matchEthSrc(macHost).build();
+            TrafficTreatment addVlan = DefaultTrafficTreatment.builder().pushVlan().setVlanId(VlanHost)
+                 .build();
+            
+            //Creamos la regla que asigna la VLAN para la mac del host que se acaba de conectar
+            FlowRule rule1 = DefaultFlowRule.builder()
+            		.fromApp(appId)
+            		.forDevice(event.subject().location().deviceId())
+            		.makePermanent()
+            		.withPriority(8)
+            		.withSelector(selector1)
+            		.withTreatment(addVlan)
+            		.build();
+            
+         	TrafficSelector selector2 = DefaultTrafficSelector.builder().matchEthDst(macHost).build();
+            TrafficTreatment removeVlan = DefaultTrafficTreatment.builder().popVlan().build();
+            
+            //Creamos la regla que asigna la VLAN para la mac del host que se acaba de conectar
+            FlowRule rule2 = DefaultFlowRule.builder()
+            		.fromApp(appId)
+            		.forDevice(event.subject().location().deviceId())
+            		.makePermanent()
+            		.withSelector(selector2)
+            		.withPriority(9)
+            		.withTreatment(removeVlan)
+            		.build();
+            
+            FlowRule []array = {rule1,rule2};
+            flowRuleService.applyFlowRules(rule1);
+            macRuleMap.put(macHost,array);
+      
+    	}
+    	else if(event.type() == HostEvent.Type.HOST_REMOVED) {
+    		log.warn("Host eliminado");
+    		FlowRule[] array = macRuleMap.get(event.subject().mac());
+    		flowRuleService.removeFlowRules(array);;
+    	}
+    }
+}
 }
 
