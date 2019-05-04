@@ -44,6 +44,8 @@ import org.onosproject.net.flow.DefaultTrafficSelector;
 import org.onosproject.net.flow.DefaultTrafficTreatment;
 import org.onosproject.net.flow.FlowRule;
 import org.onosproject.net.flow.FlowRuleService;
+import org.onosproject.net.flow.IndexTableId;
+import org.onosproject.net.flow.TableId;
 import org.onosproject.net.flow.TrafficSelector;
 import org.onosproject.net.flow.TrafficTreatment;
 import org.onosproject.net.flowobjective.DefaultForwardingObjective;
@@ -132,21 +134,22 @@ public class AppComponent{
     	if(event.type()==HostEvent.Type.HOST_ADDED) {
     		//Mirar el HashMap para crear una regla de flujo 
     		//que el trafico de la direccion MAC del host añadido se le asigne la VLAN correspondiente
-    		log.warn("Host añadido");
+    		log.warn("Host conectado");
     		MacAddress macHost = event.subject().mac();
     		
     		VlanId VlanHost = VlanId.vlanId(macVlanMap.get(macHost));
     		
         	TrafficSelector selector1 = DefaultTrafficSelector.builder().matchEthSrc(macHost).build();
             TrafficTreatment addVlan = DefaultTrafficTreatment.builder().pushVlan().setVlanId(VlanHost)
-                 .build();
+                 .transition(1).build();
             
             //Creamos la regla que asigna la VLAN para la mac del host que se acaba de conectar
             FlowRule rule1 = DefaultFlowRule.builder()
             		.fromApp(appId)
+            		.forTable(IndexTableId.of(0))
             		.forDevice(event.subject().location().deviceId())
             		.makePermanent()
-            		.withPriority(8)
+            		.withPriority(priority)
             		.withSelector(selector1)
             		.withTreatment(addVlan)
             		.build();
@@ -157,10 +160,11 @@ public class AppComponent{
             //Creamos la regla que asigna la VLAN para la mac del host que se acaba de conectar
             FlowRule rule2 = DefaultFlowRule.builder()
             		.fromApp(appId)
+            		.forTable(IndexTableId.of(1))
             		.forDevice(event.subject().location().deviceId())
             		.makePermanent()
             		.withSelector(selector2)
-            		.withPriority(9)
+            		.withPriority(priority)
             		.withTreatment(removeVlan)
             		.build();
             
@@ -170,7 +174,7 @@ public class AppComponent{
       
     	}
     	else if(event.type() == HostEvent.Type.HOST_REMOVED) {
-    		log.warn("Host eliminado");
+    		log.warn("Host desconectado");
     		FlowRule[] array = macRuleMap.get(event.subject().mac());
     		flowRuleService.removeFlowRules(array);;
     	}
