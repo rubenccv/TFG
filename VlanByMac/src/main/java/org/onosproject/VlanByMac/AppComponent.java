@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright 2019-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,6 +16,7 @@
 package org.onosproject.VlanByMac;
 
 
+import org.onlab.packet.EthType;
 import org.onlab.packet.Ethernet;
 import org.onlab.packet.MacAddress;
 import org.onlab.packet.VlanId;
@@ -136,6 +137,20 @@ public class AppComponent{
 		log.info("Started");
 		hostService.addListener(hostListener);
         //packetService.addProcessor(packetProcessor, 128);
+		
+		TrafficSelector selector = DefaultTrafficSelector.builder().matchEthType(EthType.EtherType.ARP).build();		
+		TrafficTreatment trtr = DefaultTrafficTreatment.builder().setOutput(PortNumber.CONTROLLER).build();
+
+
+		FlowRule rule = DefaultFlowRule.builder()
+				.fromApp(appId)
+				.forTable(IndexTableId.of(2))
+				.forDevice(event.subject().location().deviceId())
+				.makePermanent()
+				.withPriority(priority)
+				.withSelector(selector)
+				.withTreatment(trtr)
+				.build();
         
 		//Asignamos las VLAN al hashmap con las diferentes mac que tendremos en nuestra red
 		macVlanMap.put(MacAddress.valueOf("00:00:00:00:00:01"),VlanId.vlanId((short)1));
@@ -223,7 +238,7 @@ public class AppComponent{
 					}
 				}
 
-				TrafficTreatment trtr=addVlan1.build();
+				TrafficTreatment trtr=addVlan1.transition(2).build();
 
 				FlowRule rule = DefaultFlowRule.builder()
 						.fromApp(appId)
@@ -265,7 +280,7 @@ public class AppComponent{
 					//La segunda regla es identica excepto que el trafico que va al router tiene que mantener la VLAN asignada
 					TrafficSelector selector2 = DefaultTrafficSelector.builder().matchEthDst(macHost).build();
 					TrafficTreatment send = DefaultTrafficTreatment.builder()
-							.setOutput(event.subject().location().port()).build();
+							.setOutput(event.subject().location().port()).transition(2).build();
 
 					
 					FlowRule rule2 = DefaultFlowRule.builder()
@@ -311,6 +326,7 @@ public class AppComponent{
 					TrafficTreatment removeVlan = DefaultTrafficTreatment.builder()
 							.popVlan()
 							.setOutput(event.subject().location().port())
+							.transition(2)
 							.build();
 
 					FlowRule rule2 = DefaultFlowRule.builder()
@@ -379,7 +395,7 @@ public class AppComponent{
 				}
 
 
-				TrafficTreatment trtr=addVlan1.build();
+				TrafficTreatment trtr=addVlan1.transition(2).build();
 
 				FlowRule rule = DefaultFlowRule.builder()
 						.fromApp(appId)
