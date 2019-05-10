@@ -118,7 +118,7 @@ public class AppComponent{
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected PacketService packetService;
 
-	int priority = 129;
+	int priority = 65000;
     private final HashMap<MacAddress,VlanId> macVlanMap = new HashMap<MacAddress,VlanId>();    
     
     //private final HashMap<VlanId,ArrayList<PortNumber>> vlanPortMap = new HashMap<VlanId,ArrayList<PortNumber>>();    
@@ -152,6 +152,7 @@ public class AppComponent{
 	protected void deactivate() {
 		cfgService.unregisterProperties(getClass(), false);	
 		flowRuleService.removeFlowRulesById(appId);
+       		hostService.removeListener(hostListener);
 		log.info("Stopped");
 	}    
 	
