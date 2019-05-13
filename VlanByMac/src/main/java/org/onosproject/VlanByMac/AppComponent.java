@@ -151,6 +151,8 @@ public class AppComponent{
 				.withSelector(selector)
 				.withTreatment(trtr)
 				.build();
+		
+		flowRuleService.applyFlowRules(rule);
         
 		//Asignamos las VLAN al hashmap con las diferentes mac que tendremos en nuestra red
 		macVlanMap.put(MacAddress.valueOf("00:00:00:00:00:01"),VlanId.vlanId((short)1));
