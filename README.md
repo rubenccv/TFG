@@ -15,3 +15,5 @@
 ✓ Modificar el código de la app BanStatsShow para que el sistema mantenga las estadísticas para cada MAC, con independencia del puerto al que se conecte
 
 ✗ Crear una app que permita asignar la VLAN basado en la dirección MAC del host. En una red con 4 VLANs diferentes para el router  y con un switch (OpenVSwitch) que soporta 802.1q, comprobar el correcto funcionamiento (el host se asigna a la VLAN que le corresponde según la MAC que tenga).
+
+✗ Crear una app que permita adaptar el número de enlaces troncales a ser agregados basado en el tráfico que está recibiendo el switch. En una red con 2 switches (OpenVSwitch) diferentes interconectados entre sí mediante varios cables (x4), un número variable de enlaces troncales entre switches serán empleados acorde al tráfico que soporta la red en dicho instante.
