@@ -43,6 +43,12 @@
             <version>${onos.version}</version>
         </dependency>
 
+	<dependency>
+       	    <groupId>org.osgi</groupId>
+       	    <artifactId>org.osgi.compendium</artifactId>
+            <version>4.2.0</version>
+	</dependency>
+
         <dependency>
             <groupId>org.onosproject</groupId>
             <artifactId>onlab-osgi</artifactId>
@@ -110,6 +116,12 @@
             <version>1.4.0</version>
             <scope>provided</scope>
         </dependency>
+
+	<dependency>
+            <groupId>org.apache.felix</groupId>
+            <artifactId>org.apache.felix.scr.annotations</artifactId>
+            <version>1.12.0</version>
+	</dependency>
     </dependencies>
 
     <build>
