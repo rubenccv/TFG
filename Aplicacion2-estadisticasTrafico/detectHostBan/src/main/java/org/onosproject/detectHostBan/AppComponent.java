@@ -232,7 +232,6 @@ public class AppComponent{
         }
     }*/
     
- // Prunes the given ping record from the specified device.
     private class PingPruner extends TimerTask {
         private final FlowRule rule1;
         private final FlowRule rule2;

@@ -22,6 +22,7 @@ import org.osgi.service.component.annotations.Reference;
 import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.onlab.packet.Ethernet;
 import org.onlab.packet.IPv4;
+import org.onlab.packet.ICMP;
 import org.onlab.packet.MacAddress;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.core.CoreService;
@@ -57,8 +58,7 @@ import static org.onosproject.net.flow.criteria.Criterion.Type.ETH_SRC;
 import static org.onosproject.net.flow.criteria.Criterion.Type.ETH_DST;
 
 /**
- * Sample application that permits only one ICMP ping per minute for a unique
- * src/dst MAC pair per switch.
+ * Aplicacion que permite un numero limitado de pings por minuto entre las MACs src/dst
  */
 @Component(immediate = true)
 public class AppComponent {
@@ -66,19 +66,19 @@ public class AppComponent {
     private static Logger log = LoggerFactory.getLogger(AppComponent.class);
 
     private static final String MSG_PINGED_OK =
-            "Ping {}/{} received from {} to {} received by {}";
+            "Ping {}/{} received from {} to {}";
     private static final String MSG_PINGED_LIMIT =
             "Limit of {} pings reached!!! " +
-                    "Ping from {} to {} has already been received by {};" +
-                    " 60 second ban has been issued";
+                    "Ping from {} to {} has already been received. 60 seconds ban";
+                    
     private static final String MSG_PING_REENABLED =
-            "Re-enabled ping from {} to {} on {}";
+            "Re-enabled ping from {} to {}";
 
     private static final int PRIORITY = 128;
     private static final int DROP_PRIORITY = 129;
     private static final int TIMEOUT_SEC = 60; // seconds
 
-    private static final int LIM_PINGS = 3; // maximum number of pings allowed
+    private static final int LIM_PINGS = 4; // maximum number of pings allowed
 
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected CoreService coreService;
@@ -96,12 +96,32 @@ public class AppComponent {
     private final PacketProcessor packetProcessor = new PingPacketProcessor();
     private final FlowRuleListener flowListener = new InternalFlowListener();
 
-    // Selector para trafico ICMP que es el que vamos a interceptar
+   // static byte	TYPE_ECHO_REQUEST = 8;
+
+    /*Pequeña explicacion para la memoria:
+     * Todo este codigo se ejecuta en el controlador, por tanto, para poder contabilizar los pings 
+     * que esta habiendo es necesario que todos los REQUEST vayan al controlador, para ello creamos la regla
+     * llamada intercept que se ejecuta en el activate
+     * 
+     * Ademas tambien creamos un procesador de paquetes para detectar si el paquete recibido es ICMP 
+     * y poder trabajar con el. Una vez comprobado que es ICMP REQUEST con la funcion isICMP 
+     * sumamos el ping en el HashMap
+     * 
+     * Si el numero de pings es menor que el maximo simplemente decimos que se sume 1 y llamos a PingPruner
+     * Este metodo lo que hace es quitar 1 del HashMap de numero de pings pasado 1 minuto
+     * 
+     * Si el numero de pings es mayor que el maximo creamos una regla que se enviara al openVswitch 
+     * y se instalara alli. La regla lo que dice es que banee los ICMP Request que se envien 
+     * desde ese origen a ese destino exactamente permitiendo asi poder responder a los Reply de otros 
+     * pings que se puedan enviar
+     * 
+     * Finalmente ponemos un listener para escuchar los flujos que se eliminan. 
+     * De esta forma cuando la regla se ha borrado lo notificamos
+     */    
     private final TrafficSelector intercept = DefaultTrafficSelector.builder()
-            .matchEthType(Ethernet.TYPE_IPV4).matchIPProtocol(IPv4.PROTOCOL_ICMP)
+            .matchEthType(Ethernet.TYPE_IPV4).matchIPProtocol(IPv4.PROTOCOL_ICMP).matchIcmpType(ICMP.TYPE_ECHO_REQUEST)
             .build();
 
-    // Means to track detected pings from each device on a temporary basis
     private final HashMap<PingRecord,Integer> pings = new HashMap<PingRecord,Integer>();
     private final Timer timer = new Timer("severalping-sweeper");
 
@@ -118,12 +138,15 @@ public class AppComponent {
         flowRuleService.addListener(flowListener);
         packetService.requestPackets(intercept, PacketPriority.CONTROL, appId,
                                      Optional.empty());
+        
+       
         log.info("Started");
     }
 
     @Deactivate
     public void deactivate() {
         packetService.removeProcessor(packetProcessor);
+        packetService.cancelPackets(intercept, PacketPriority.CONTROL, appId);
         flowRuleService.removeFlowRulesById(appId);
         flowRuleService.removeListener(flowListener);
         log.info("Stopped");
@@ -136,6 +159,7 @@ public class AppComponent {
         public void process(PacketContext context) {
             Ethernet eth = context.inPacket().parsed();
             if (isIcmpPing(eth)) {
+            	log.error("Paquete ICMP recibido");
                 processPing(context, eth); //Llamamos al metodo processPing
             }
         }
@@ -158,14 +182,15 @@ public class AppComponent {
         }
         if (num_pings<LIM_PINGS) {
             // Less pings than allowed detected; track it for the next minute
-            log.info(MSG_PINGED_OK, num_pings+1, LIM_PINGS, src, dst, deviceId);
+            log.info(MSG_PINGED_OK, num_pings+1, LIM_PINGS, src, dst);
             pings.put(ping,num_pings+1);
-            //TODO No entiendo esta linea
+         
+            //Crea una tarea en 60 segundos para que se quite 1 de ellos.
             timer.schedule(new PingPruner(ping), TIMEOUT_SEC * 1000);
         }
         else {
          	//En caso de que sea mayor que el umbral que tenemos llamamos al metodo banPings y bloqueamos el paquete a la salida
-            log.warn(MSG_PINGED_LIMIT, LIM_PINGS, src, dst, deviceId);
+            log.warn(MSG_PINGED_LIMIT, LIM_PINGS, src, dst);
             banPings(deviceId, src, dst);
             context.block();
         }
@@ -174,7 +199,7 @@ public class AppComponent {
     //Creamos una regla temporal en el openVswitch que descarte los paquetes ICMP entre src y dst.
     private void banPings(DeviceId deviceId, MacAddress src, MacAddress dst) {
         TrafficSelector selector = DefaultTrafficSelector.builder()
-                .matchEthSrc(src).matchEthDst(dst).build();
+                .matchEthSrc(src).matchEthDst(dst).matchEthType(Ethernet.TYPE_IPV4).matchIPProtocol(IPv4.PROTOCOL_ICMP).matchIcmpType(ICMP.TYPE_ECHO_REQUEST).build();
         TrafficTreatment drop = DefaultTrafficTreatment.builder()
                 .drop().build();
 
@@ -186,13 +211,15 @@ public class AppComponent {
                 .withPriority(DROP_PRIORITY)
                 .makeTemporary(TIMEOUT_SEC)
                 .add());
+        
+        //log.error("Regla creada entre {} y {} que descarta los paquetes",src,dst);
     }
 
 
     // Indicates whether the specified packet corresponds to ICMP ping.
     private boolean isIcmpPing(Ethernet eth) {
         return eth.getEtherType() == Ethernet.TYPE_IPV4 &&
-                ((IPv4) eth.getPayload()).getProtocol() == IPv4.PROTOCOL_ICMP;
+                ((IPv4) eth.getPayload()).getProtocol() == IPv4.PROTOCOL_ICMP && ((ICMP)((IPv4) eth.getPayload()).getPayload()).getIcmpType()==ICMP.TYPE_ECHO_REQUEST ;
     }
 
 
@@ -227,6 +254,7 @@ public class AppComponent {
         }
     }
 
+    
     // Realmente esto es necesario? Si ya aumentas en 1 el numero de pings arriba no haria falta yo creo
     private class PingPruner extends TimerTask {
         private final PingRecord ping;
@@ -261,7 +289,7 @@ public class AppComponent {
                 MacAddress src = ((EthCriterion) criterion).mac();
                 criterion = flowRule.selector().getCriterion(ETH_DST);
                 MacAddress dst = ((EthCriterion) criterion).mac();
-                log.warn(MSG_PING_REENABLED, src, dst, flowRule.deviceId());
+                log.warn(MSG_PING_REENABLED, src, dst);
             }
         }
     }

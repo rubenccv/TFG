@@ -28,6 +28,7 @@ import org.onlab.packet.TCP;
 import org.onlab.packet.TpPort;
 import org.onlab.packet.UDP;
 import org.onlab.packet.VlanId;
+import org.onlab.util.Bandwidth;
 import org.onlab.util.KryoNamespace;
 import org.onlab.util.Tools;
 import org.onosproject.cfg.ComponentConfigService;
@@ -36,12 +37,17 @@ import org.onosproject.core.CoreService;
 import org.onosproject.core.GroupId;
 import org.onosproject.event.Event;
 import org.onosproject.net.ConnectPoint;
+import org.onosproject.net.Device;
 import org.onosproject.net.DeviceId;
 import org.onosproject.net.Host;
 import org.onosproject.net.HostId;
 import org.onosproject.net.Link;
 import org.onosproject.net.Path;
+import org.onosproject.net.Port;
 import org.onosproject.net.PortNumber;
+import org.onosproject.net.device.DeviceService;
+import org.onosproject.net.device.PortStatistics;
+import org.onosproject.net.flow.DefaultFlowRule;
 import org.onosproject.net.flow.DefaultTrafficSelector;
 import org.onosproject.net.flow.DefaultTrafficTreatment;
 import org.onosproject.net.flow.FlowEntry;
@@ -56,6 +62,14 @@ import org.onosproject.net.flow.instructions.Instructions;
 import org.onosproject.net.flowobjective.DefaultForwardingObjective;
 import org.onosproject.net.flowobjective.FlowObjectiveService;
 import org.onosproject.net.flowobjective.ForwardingObjective;
+import org.onosproject.net.group.DefaultGroup;
+import org.onosproject.net.group.DefaultGroupBucket;
+import org.onosproject.net.group.DefaultGroupDescription;
+import org.onosproject.net.group.DefaultGroupKey;
+import org.onosproject.net.group.GroupBucket;
+import org.onosproject.net.group.GroupBuckets;
+import org.onosproject.net.group.GroupDescription;
+import org.onosproject.net.group.GroupService;
 import org.onosproject.net.host.HostService;
 import org.onosproject.net.link.LinkEvent;
 import org.onosproject.net.packet.InboundPacket;
@@ -80,12 +94,16 @@ import org.osgi.service.component.annotations.Reference;
 import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.slf4j.Logger;
 
+import java.security.acl.Group;
+import java.util.ArrayList;
 import java.util.Dictionary;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.ExecutorService;
 
 import static java.util.concurrent.Executors.newSingleThreadExecutor;
@@ -161,12 +179,18 @@ public class ReactiveForwarding {
 
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected FlowRuleService flowRuleService;
+    
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    protected DeviceService deviceService;
 
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected FlowObjectiveService flowObjectiveService;
 
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected CoreService coreService;
+    
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    protected GroupService groupService;
 
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected ComponentConfigService cfgService;
@@ -228,6 +252,16 @@ public class ReactiveForwarding {
     private final TopologyListener topologyListener = new InternalTopologyListener();
 
     private ExecutorService blackHoleExecutor;
+    
+    long puerto1 = 11;
+    long puerto2 = 12;
+    long puerto3 = 13;
+    long puerto4 = 14;
+    long bitsPorSegundo = 0;
+    GroupBuckets gbs;
+    DefaultGroupKey k;
+    protected Timer timer; 
+    Long temporizadorTarea = 20L;
 
 
     @Activate
@@ -247,10 +281,7 @@ public class ReactiveForwarding {
                                                                    "black-hole-fixer",
                                                                    log));
 
-        log.warn("Funciono hasta aqui");
         cfgService.registerProperties(getClass());
-        
-        log.warn("Pero aqui ya no :(");
         appId = coreService.registerApplication("org.onosproject.fwdBalanceo");
 
         packetService.addProcessor(processor, PacketProcessor.director(2));
@@ -259,6 +290,113 @@ public class ReactiveForwarding {
         requestIntercepts();
 
         log.info("Started", appId.id());
+        
+		byte[] key = {5};
+		k = new DefaultGroupKey(key);
+		
+		Iterable<Device> devices = deviceService.getDevices(); 
+		
+		List<GroupBucket> listGroup = new ArrayList<GroupBucket>();
+		
+		for(Device d:devices) {
+			
+            TrafficTreatment sendPort = DefaultTrafficTreatment.builder()
+                    .setOutput(PortNumber.portNumber(puerto1)).build();
+            
+    		GroupBucket gb = DefaultGroupBucket.createSelectGroupBucket(sendPort);
+    		
+    		listGroup.add(gb);
+
+    		gbs = new GroupBuckets(listGroup);
+    		
+			DefaultGroupDescription degd = new DefaultGroupDescription(d.id(), GroupDescription.Type.SELECT,gbs,k,137,appId);
+
+			DefaultGroup dgd = new DefaultGroup(new GroupId(137),degd);
+
+			groupService.addGroup(dgd);		
+		}
+        
+        TimerTask tarea = new TimerTask() {
+        	public void run() {
+        		//Obtenemos las estadisticas para los puertos del OVS1
+                Iterable<Device> devices = deviceService.getDevices(); 
+                for (Device d: devices) {
+                	bitsPorSegundo = 0;
+                    log.warn("Device id " + d.id().toString());
+                	List<Port> ports = deviceService.getPorts(d.id());
+                	
+                	for (Port p: ports) {		
+                		//log.info("Velocidad puerto " + p.number().toLong() + " es: " +p.portSpeed());
+
+                		//Para cada puerto vemos el trafico de salida que tiene
+                        PortStatistics traffic = deviceService.getDeltaStatisticsForPort(d.id(), p.number());
+                		if(traffic!=null)
+                			bitsPorSegundo = bitsPorSegundo + (traffic.bytesSent()*8)/temporizadorTarea;        		
+                		else
+                			log.error("Unable to read portStats");
+                		
+
+                	}//Cierre del for ports
+            			log.error("Bits: "+bitsPorSegundo);
+                		//Creamos el grupo en el que metemos el puerto 10 ya que siempre se va a mandar minimo por ahi
+                		            			
+                        TrafficTreatment sendPort = DefaultTrafficTreatment.builder()
+                                .setOutput(PortNumber.portNumber(puerto1)).build();
+                        
+                		GroupBucket gb = DefaultGroupBucket.createSelectGroupBucket(sendPort);
+
+                		List<GroupBucket> listGroup = new ArrayList<GroupBucket>();
+                		listGroup.add(gb);
+                		//Si los bits por segundo superan ciertos umbrales vamos aumentando los puertos por los cuales mandar el trafico
+                		if(bitsPorSegundo>=100000) { //100kbps
+                			//Añadimos al grupo el puerto 11
+                			log.warn("Anadido puerto 2");
+                            TrafficTreatment sendPort2 = DefaultTrafficTreatment.builder()
+                                    .setOutput(PortNumber.portNumber(puerto2)).build();
+                    		GroupBucket gb2 = DefaultGroupBucket.createSelectGroupBucket(sendPort2);
+
+                    		listGroup.add(gb2);
+                			
+                		}
+                		if(bitsPorSegundo>=200000) { //20Mbps
+                			//Añadimos al grupo el puerto 12
+                			log.warn("Anadido puerto 3");
+                			TrafficTreatment sendPort3 = DefaultTrafficTreatment.builder()
+                                    .setOutput(PortNumber.portNumber(puerto3)).build();
+                    		GroupBucket gb3 = DefaultGroupBucket.createSelectGroupBucket(sendPort3);
+
+                    		listGroup.add(gb3);
+                			
+                		}
+                		if(bitsPorSegundo>=300000) {
+                			//Añadimos al grupo el puerto 13
+                			log.warn("Anadido puerto 4");
+                            TrafficTreatment sendPort4 = DefaultTrafficTreatment.builder()
+                                    .setOutput(PortNumber.portNumber(puerto4)).build();
+                    		GroupBucket gb4 = DefaultGroupBucket.createSelectGroupBucket(sendPort4);
+
+                    		listGroup.add(gb4);
+                			
+                		}
+                		
+            			gbs = new GroupBuckets(listGroup);
+                		groupService.setBucketsForGroup(d.id(), k, gbs, k, appId);
+            		/*	groupService.removeBucketsFromGroup(d.id(),k, gbs, null, appId);
+            			groupService.addBucketsToGroup(d.id(), k, gbs, null, appId);*/
+            			
+                }
+        		
+        	}
+        };
+        
+        //Creamos el temporizador para la tarea
+        timer = new Timer("Timer");
+        long delay = 1000L; // We start polling statistics after 1 second
+        long period = 1000L * temporizadorTarea; // Every 30 seconds we get the statistics
+        timer.scheduleAtFixedRate(tarea, delay, period);
+        
+        
+        
     }
 
     @Deactivate
@@ -267,6 +405,8 @@ public class ReactiveForwarding {
         withdrawIntercepts();
         flowRuleService.removeFlowRulesById(appId);
         packetService.removeProcessor(processor);
+        groupService.purgeGroupEntries();
+        timer.cancel();
         topologyService.removeListener(topologyListener);
         blackHoleExecutor.shutdown();
         blackHoleExecutor = null;
@@ -599,29 +739,55 @@ public class ReactiveForwarding {
     private void packetOut(PacketContext context, PortNumber portNumber, ReactiveForwardMetrics macMetrics) {
         replyPacket(macMetrics);
         if(portNumber.equals(PortNumber.FLOOD)) {
+        	
+        	/*Creamos una regla para los paquetes que vengan con FLOOD para que se
+        	 * envien por todos los puertos menos los troncales, que se instalara en el switch
+        	 * Una vez creada le decimos que ese paquete que vuelva a la tabla del switch 
+        	 */	
         		TrafficTreatment trtr = 
         		DefaultTrafficTreatment.builder()
-        		.setOutput(PortNumber.portNumber(4))
-        		.setOutput(PortNumber.portNumber(3))
-        		.setOutput(PortNumber.portNumber(5))
         		.setOutput(PortNumber.portNumber(2))
+        		.setOutput(PortNumber.portNumber(3))
+        		.setOutput(PortNumber.portNumber(4))
+        		.setOutput(PortNumber.portNumber(5))
         		.setOutput(PortNumber.portNumber(6))
         		.setOutput(PortNumber.portNumber(7))
         		.setOutput(PortNumber.portNumber(8))
         		.setOutput(PortNumber.portNumber(9))
         		.setOutput(PortNumber.portNumber(10))
+        	    .group(new GroupId(137))
         		.build();
-        		//.group(new GroupId(137))
-        		//.build();
-        		context.treatmentBuilder().addTreatment(trtr);
+        		
+        		
+        		TrafficSelector selector = DefaultTrafficSelector.builder().matchEthDst(MacAddress.BROADCAST).build();
+        		
+        		
+                FlowRule rule1 = DefaultFlowRule.builder()
+                		.fromApp(appId)
+                		.forDevice(context.inPacket().receivedFrom().deviceId())
+                		.withSelector(selector)
+                		.makePermanent()
+                		.withPriority(41000)
+                		.withTreatment(trtr)
+                		.build();
+                
+                flowRuleService.applyFlowRules(rule1);
+               
+                //Una vez creada la regla le decimos al paquete que vuelva al switch a la tabla 1
+                TrafficTreatment sendBack = DefaultTrafficTreatment.builder().setOutput(PortNumber.TABLE).build();
+                
+                context.treatmentBuilder().addTreatment(sendBack);
         }
-        else
-        	context.treatmentBuilder().setOutput(portNumber);
-        
+        //TODO Mirar esto que esta cambiado
+        else {
+            if(portNumber.toLong()==11 || portNumber.toLong()==12 || portNumber.toLong()==13 || portNumber.toLong()==14) {
+            	context.treatmentBuilder().group(new GroupId(137));
+            }
+            else
+            	context.treatmentBuilder().setOutput(portNumber);
+        }
         context.send();
-   //     packetService.emit(context.outPacket().treatment().);
     }
-
     // Install a rule forwarding the packet to the specified port.
     private void installRule(PacketContext context, PortNumber portNumber, ReactiveForwardMetrics macMetrics) {
         //
@@ -742,7 +908,7 @@ public class ReactiveForwarding {
        //Hacemos que si el paquete va por los puertos 10,11,12 o 13 del switch se envie por el grupo 
        //y que sea este el que indique en la aplicacion balanceoSwitch cual de ellos esta activo
        //De esta forma tenemos implementado el balanceo
-       if(portNumber.toLong()==10 || portNumber.toLong()==11 || portNumber.toLong()==12 || portNumber.toLong()==13) {
+       if(portNumber.toLong()==11 || portNumber.toLong()==12 || portNumber.toLong()==13 || portNumber.toLong()==14) {
         TrafficTreatment treatment = DefaultTrafficTreatment.builder()
                 .group(new GroupId(137))
                 .build();

@@ -36,7 +36,7 @@ public final class OsgiPropertyConstants {
     static final boolean IPV6_FORWARDING_DEFAULT = false;
 
     static final String MATCH_DST_MAC_ONLY = "matchDstMacOnly";
-    static final boolean MATCH_DST_MAC_ONLY_DEFAULT = false;
+    static final boolean MATCH_DST_MAC_ONLY_DEFAULT = true;
 
     static final String MATCH_VLAN_ID = "matchVlanId";
     static final boolean MATCH_VLAN_ID_DEFAULT = false;

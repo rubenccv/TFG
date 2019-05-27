@@ -10,7 +10,7 @@
 
 ✓ Crear la app DetectHostBan que bloquea los puertos de un dispositivo conectado al controlador cuando el tráfico excede un umbral prefijado
 
-✗ Modificar la app OnePing/SeveralPing para que sólo bloquee el tráfico ICMP y sólo cuente los ICMP Echo Request (para que el tráfico se bloquee en un único sentido y no bidireccionalmente)
+✓ Modificar la app OnePing/SeveralPing para que sólo bloquee el tráfico ICMP y sólo cuente los ICMP Echo Request (para que el tráfico se bloquee en un único sentido y no bidireccionalmente)
 
 ✓ Modificar el código de la app DetectHostBan para que el sistema mantenga las estadísticas para cada MAC, con independencia del puerto al que se conecte
 
