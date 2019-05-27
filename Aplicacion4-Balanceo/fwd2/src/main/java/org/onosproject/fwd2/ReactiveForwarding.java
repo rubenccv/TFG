@@ -79,6 +79,8 @@ import org.osgi.service.component.annotations.Reference;
 import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.slf4j.Logger;
 
+import org.apache.felix.scr.annotations.Property;
+
 import java.util.Dictionary;
 import java.util.HashMap;
 import java.util.List;
@@ -180,48 +182,78 @@ public class ReactiveForwarding {
     private ApplicationId appId;
 
     /** Enable packet-out only forwarding; default is false. */
+    @Property(name = "packetOutOnly", boolValue = false,
+              label = "Enable packet-out only forwarding; default is false.")
     private boolean packetOutOnly = PACKET_OUT_ONLY_DEFAULT;
 
     /** Enable first packet forwarding using OFPP_TABLE port instead of PacketOut with actual port; default is false. */
+    @Property(name = "packetOutOfppTable", boolValue = false,
+              label = "Enable first packet forwarding using OFPP_TABLE port instead of PacketOut with actual port; default is false.")
     private boolean packetOutOfppTable = PACKET_OUT_OFPP_TABLE_DEFAULT;
 
     /** Configure Flow Timeout for installed flow rules; default is 10 sec. */
+    @Property(name = "flowTimeout", intValue = 10,
+              label = "Configure Flow Timeout for installed flow rules; default is 10 sec.")
     private int flowTimeout = FLOW_TIMEOUT_DEFAULT;
 
     /** Configure Flow Priority for installed flow rules; default is 10. */
+    @Property(name = "flowPriority", intValue = 10,
+              label = "Configure Flow Priority for installed flow rules; default is 10.")
     private int flowPriority = FLOW_PRIORITY_DEFAULT;
 
     /** Enable IPv6 forwarding; default is false. */
+    @Property(name = "ipv6Forwarding", boolValue = false,
+              label = "Enable IPv6 forwarding; default is false.")
     private boolean ipv6Forwarding = IPV6_FORWARDING_DEFAULT;
 
     /** Enable matching Dst Mac Only; default is false. */
+    @Property(name = "matchDstMacOnly", boolValue = false,
+              label = "Enable matching Dst Mac Only; default is false.")
     private boolean matchDstMacOnly = MATCH_DST_MAC_ONLY_DEFAULT;
 
     /** Enable matching Vlan ID; default is false. */
+    @Property(name = "matchVlanId", boolValue = false,
+              label = "Enable matching Vlan ID; default is false.")
     private boolean matchVlanId = MATCH_VLAN_ID_DEFAULT;
 
     /** Enable matching IPv4 Addresses; default is false. */
+    @Property(name = "matchIpv4Address", boolValue = false,
+              label = "Enable matching IPv4 Addresses; default is false.")
     private boolean matchIpv4Address = MATCH_IPV4_ADDRESS_DEFAULT;
 
     /** Enable matching IPv4 DSCP and ECN; default is false. */
+    @Property(name = "matchIpv4Dscp", boolValue = false,
+              label = "Enable matching IPv4 DSCP and ECN; default is false.")
     private boolean matchIpv4Dscp = MATCH_IPV4_DSCP_DEFAULT;
 
     /** Enable matching IPv6 Addresses; default is false. */
+    @Property(name = "matchIpv6Address", boolValue = false,
+              label = "Enable matching IPv6 Addresses; default is false.")
     private boolean matchIpv6Address = MATCH_IPV6_ADDRESS_DEFAULT;
 
     /** Enable matching IPv6 FlowLabel; default is false. */
+    @Property(name = "matchIpv6FlowLabel", boolValue = false,
+              label = "Enable matching IPv6 FlowLabel; default is false.")
     private boolean matchIpv6FlowLabel = MATCH_IPV6_FLOW_LABEL_DEFAULT;
 
     /** Enable matching TCP/UDP ports; default is false. */
+    @Property(name = "matchTcpUdpPorts", boolValue = false,
+              label = "Enable matching TCP/UDP ports; default is false.")
     private boolean matchTcpUdpPorts = MATCH_TCP_UDP_PORTS_DEFAULT;
 
     /** Enable matching ICMPv4 and ICMPv6 fields; default is false. */
+    @Property(name = "matchIcmpFields", boolValue = false,
+              label = "Enable matching ICMPv4 and ICMPv6 fields; default is false.")
     private boolean matchIcmpFields = MATCH_ICMP_FIELDS_DEFAULT;
 
     /** Ignore (do not forward) IPv4 multicast packets; default is false. */
+    @Property(name = "ignoreIPv4Multicast", boolValue = false,
+              label = "Ignore (do not forward) IPv4 multicast packets; default is false.")
     private boolean ignoreIPv4Multicast = IGNORE_IPV4_MCAST_PACKETS_DEFAULT;
 
     /** Enable record metrics for reactive forwarding. */
+    @Property(name = "recordMetrics", boolValue = false,
+              label = "Enable record metrics for reactive forwarding; default is false.")
     private boolean recordMetrics = RECORD_METRICS_DEFAULT;
 
     private final TopologyListener topologyListener = new InternalTopologyListener();
@@ -246,7 +278,6 @@ public class ReactiveForwarding {
                                                                    "black-hole-fixer",
                                                                    log));
 
-        getClass().
         cfgService.registerProperties(getClass());
         appId = coreService.registerApplication("org.onosproject.fwd");
 
