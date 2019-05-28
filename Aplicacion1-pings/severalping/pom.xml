@@ -49,6 +49,12 @@
             <version>${onos.version}</version>
         </dependency>
 
+	<dependency>
+    		<groupId>org.apache.felix</groupId>
+    		<artifactId>org.apache.felix.scr.annotations</artifactId>
+    		<version>1.12.0</version>
+	</dependency>
+
         <dependency>
             <groupId>org.onosproject</groupId>
             <artifactId>onlab-misc</artifactId>
@@ -130,7 +136,7 @@
             <plugin>
                 <groupId>org.onosproject</groupId>
                 <artifactId>onos-maven-plugin</artifactId>
-                <version>2.0</version>
+                <version>2.1</version>
                 <executions>
                     <execution>
                         <id>cfg</id>

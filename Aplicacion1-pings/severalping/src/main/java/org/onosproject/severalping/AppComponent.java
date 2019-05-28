@@ -15,15 +15,19 @@
  */
 package org.onosproject.severalping;
 
+import org.osgi.service.component.ComponentContext;
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Deactivate;
+import org.osgi.service.component.annotations.Modified;
 import org.osgi.service.component.annotations.Reference;
 import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.onlab.packet.Ethernet;
 import org.onlab.packet.IPv4;
 import org.onlab.packet.ICMP;
 import org.onlab.packet.MacAddress;
+import org.onlab.util.Tools;
+import org.onosproject.cfg.ComponentConfigService;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.core.CoreService;
 import org.onosproject.net.DeviceId;
@@ -47,11 +51,23 @@ import org.onosproject.net.packet.PacketService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+
+
+import com.google.common.base.Strings;
+
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.Dictionary;
+import java.util.Enumeration;
 import java.util.HashMap;
+
+import static org.onosproject.severalping.OsgiPropertyConstants.MAX_PINGS;
+import static org.onosproject.severalping.OsgiPropertyConstants.MAX_PINGS_DEFAULT;
+
+import static org.onosproject.severalping.OsgiPropertyConstants.TIME_BAN;
+import static org.onosproject.severalping.OsgiPropertyConstants.TIME_BAN_DEFAULT;
 
 import static org.onosproject.net.flow.FlowRuleEvent.Type.RULE_REMOVED;
 import static org.onosproject.net.flow.criteria.Criterion.Type.ETH_SRC;
@@ -60,7 +76,23 @@ import static org.onosproject.net.flow.criteria.Criterion.Type.ETH_DST;
 /**
  * Aplicacion que permite un numero limitado de pings por minuto entre las MACs src/dst
  */
-@Component(immediate = true)
+
+
+
+/*    @Property(name = "maxPings", intValue = DEFAULT_MAX_PINGS,
+        label = "Maximum number of pings w")
+private int maxPings = DEFAULT_MAX_PINGS;*/
+
+
+@Component(
+	    immediate = true,
+	    service = AppComponent.class,
+	    property = {
+	    		MAX_PINGS + ":Integer=" + MAX_PINGS_DEFAULT,
+	    		TIME_BAN + ":Integer=" + TIME_BAN_DEFAULT,
+	    }
+	)
+
 public class AppComponent {
 
     private static Logger log = LoggerFactory.getLogger(AppComponent.class);
@@ -73,12 +105,17 @@ public class AppComponent {
                     
     private static final String MSG_PING_REENABLED =
             "Re-enabled ping from {} to {}";
+    
+    
+    /** Configure max pings that can be send; default is 7 pings. */
+    private int MAX_PINGS = MAX_PINGS_DEFAULT;
+
+    /** Configure the time that 2 hosts are banned in seconds; default is 60 seconds. */
+    private int TIME_BAN = TIME_BAN_DEFAULT;
 
     private static final int PRIORITY = 128;
     private static final int DROP_PRIORITY = 129;
-    private static final int TIMEOUT_SEC = 60; // seconds
 
-    private static final int LIM_PINGS = 4; // maximum number of pings allowed
 
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected CoreService coreService;
@@ -92,11 +129,14 @@ public class AppComponent {
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected PacketService packetService;
 
+    //Servicio para crear propiedades configurables
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    protected ComponentConfigService cfgService;
+
     private ApplicationId appId;
     private final PacketProcessor packetProcessor = new PingPacketProcessor();
     private final FlowRuleListener flowListener = new InternalFlowListener();
 
-   // static byte	TYPE_ECHO_REQUEST = 8;
 
     /*Pequeña explicacion para la memoria:
      * Todo este codigo se ejecuta en el controlador, por tanto, para poder contabilizar los pings 
@@ -125,22 +165,20 @@ public class AppComponent {
     private final HashMap<PingRecord,Integer> pings = new HashMap<PingRecord,Integer>();
     private final Timer timer = new Timer("severalping-sweeper");
 
-    public AppComponent()
-    {
-        
-    }
+
 
     @Activate //Cuando activamos la aplicacion desde ONOS se ejecuta este metodo
-    public void activate() {	
+    public void activate(ComponentContext context) {	
         appId = coreService.registerApplication("org.onosproject.severalping",
                                                 () -> log.info("Periscope down."));
         packetService.addProcessor(packetProcessor, PRIORITY);
         flowRuleService.addListener(flowListener);
         packetService.requestPackets(intercept, PacketPriority.CONTROL, appId,
                                      Optional.empty());
-        
-       
-        log.info("Started");
+
+        cfgService.registerProperties(getClass());
+        modified(context);
+        log.info("Activada aplicacion severalpings");
     }
 
     @Deactivate
@@ -149,6 +187,7 @@ public class AppComponent {
         packetService.cancelPackets(intercept, PacketPriority.CONTROL, appId);
         flowRuleService.removeFlowRulesById(appId);
         flowRuleService.removeListener(flowListener);
+        cfgService.unregisterProperties(getClass(), false);
         log.info("Stopped");
     }
 
@@ -180,17 +219,17 @@ public class AppComponent {
         if (num_pings==null) {
             num_pings=0;
         }
-        if (num_pings<LIM_PINGS) {
+        if (num_pings<MAX_PINGS) {
             // Less pings than allowed detected; track it for the next minute
-            log.info(MSG_PINGED_OK, num_pings+1, LIM_PINGS, src, dst);
+            log.info(MSG_PINGED_OK, num_pings+1, MAX_PINGS, src, dst);
             pings.put(ping,num_pings+1);
          
             //Crea una tarea en 60 segundos para que se quite 1 de ellos.
-            timer.schedule(new PingPruner(ping), TIMEOUT_SEC * 1000);
+            timer.schedule(new PingPruner(ping), TIME_BAN * 1000);
         }
         else {
          	//En caso de que sea mayor que el umbral que tenemos llamamos al metodo banPings y bloqueamos el paquete a la salida
-            log.warn(MSG_PINGED_LIMIT, LIM_PINGS, src, dst);
+            log.warn(MSG_PINGED_LIMIT, MAX_PINGS, src, dst);
             banPings(deviceId, src, dst);
             context.block();
         }
@@ -209,10 +248,8 @@ public class AppComponent {
                 .withTreatment(drop)
                 .withFlag(ForwardingObjective.Flag.VERSATILE)
                 .withPriority(DROP_PRIORITY)
-                .makeTemporary(TIMEOUT_SEC)
+                .makeTemporary(TIME_BAN)
                 .add());
-        
-        //log.error("Regla creada entre {} y {} que descarta los paquetes",src,dst);
     }
 
 
@@ -255,7 +292,7 @@ public class AppComponent {
     }
 
     
-    // Realmente esto es necesario? Si ya aumentas en 1 el numero de pings arriba no haria falta yo creo
+    //Eliminamos en 1 el numero de pings del HashMap una vez ha pasado el tiempo predefinido
     private class PingPruner extends TimerTask {
         private final PingRecord ping;
 
@@ -293,4 +330,25 @@ public class AppComponent {
             }
         }
     }
+    
+    @Modified
+    public void modified(ComponentContext context) {
+        Dictionary<?, ?> properties = context.getProperties();
+        
+        /*Enumeration<?> e = properties.keys();
+        while(e.hasMoreElements())
+        {
+        	log.info(e.nextElement().toString());
+        }*/
+        
+        String s = Tools.get(properties, "MAX_PINGS");
+        MAX_PINGS = Strings.isNullOrEmpty(s) ? MAX_PINGS_DEFAULT : Integer.parseInt(s.trim());
+
+        s = Tools.get(properties, "TIME_BAN");
+        TIME_BAN = Strings.isNullOrEmpty(s) ? TIME_BAN_DEFAULT : Integer.parseInt(s.trim());
+        
+        log.info("Propiedad cambiada a: {} pings y {} segundos",MAX_PINGS,TIME_BAN);
+    }
 }
+
+
