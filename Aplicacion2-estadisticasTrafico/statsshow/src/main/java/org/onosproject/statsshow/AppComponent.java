@@ -15,47 +15,71 @@
  */
 package org.onosproject.statsshow;
 
+import org.osgi.service.component.ComponentContext;
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Deactivate;
 import org.osgi.service.component.annotations.Reference;
 import org.osgi.service.component.annotations.ReferenceCardinality;
-import org.onosproject.core.ApplicationId;
+import org.onlab.util.Tools;
+import org.onosproject.cfg.ComponentConfigService;
 import org.onosproject.core.CoreService;
-import org.onosproject.net.DeviceId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Strings;
 
 import org.onosproject.net.Device;
 import org.onosproject.net.Port;
 import org.onosproject.net.device.DeviceService;
 import org.onosproject.net.device.PortStatistics;
 
-import java.util.Objects;
-import java.util.Optional;
+import static org.onosproject.statsshow.OsgiPropertyConstants.TASK_PERIOD;
+import static org.onosproject.statsshow.OsgiPropertyConstants.TASK_PERIOD_DEFAULT;
+
+
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.HashMap;
-import java.util.Iterator;
+import java.util.Dictionary;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Sample application that shows traffic statistics every few seconds.
  */
-@Component(immediate = true)
+
+@Component(
+	    immediate = true,
+	    service = AppComponent.class,
+	    property = {
+	    		TASK_PERIOD + ":Integer=" + TASK_PERIOD_DEFAULT,
+	    }
+	)
+
 public class AppComponent {
 
     private final Logger log = LoggerFactory.getLogger(AppComponent.class);
 
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected DeviceService deviceService;
+    
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    protected CoreService coreService;
+    
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    protected ComponentConfigService cfgService;
+
+    
+    /** Configure the periodicty of the task */
+    private int TASK_PERIOD = TASK_PERIOD_DEFAULT;
 
     protected Timer timer; 
 
     @Activate
-    protected void activate() {
-        log.info("Started");
+    public void activate(ComponentContext context) {
+    	log.info("Started");
+    	//TODO La linea que registra las propiedades crea un bucle infinito que activa y desactiva la app constantemente
+        cfgService.registerProperties(getClass());
+        modified(context);
 
         TimerTask repeatedTask = new TimerTask() {
             public void run() {
@@ -96,13 +120,27 @@ public class AppComponent {
         timer = new Timer("Timer");
      
         long delay = 1000L; // We start polling statistics after 1 second
-        long period = 1000L * 30L; // Every 30 seconds we get the statistics
+        long period = 1000L * (long)TASK_PERIOD; // Every 30 seconds (by default) we get the statistics
         timer.scheduleAtFixedRate(repeatedTask, delay, period);
+        //
     }
 
     @Deactivate
-    protected void deactivate() {
+    public void deactivate() {
         timer.cancel();
-        log.info("Stopped");
+        cfgService.unregisterProperties(getClass(), false);
+        log.info("Aplicacion statsshow desactivada");
     }
+    
+    
+    public void modified(ComponentContext context) {
+        Dictionary<?, ?> properties = context.getProperties();
+        
+        String s = Tools.get(properties, "TASK_PERIOD");
+        log.error("Cadena: " +s);
+        TASK_PERIOD = Strings.isNullOrEmpty(s) ? TASK_PERIOD_DEFAULT : Integer.parseInt(s.trim());
+ 
+        log.info("Propiedad cambiada a: {} segundos de periodicidad",TASK_PERIOD);
+    }
+    
 }

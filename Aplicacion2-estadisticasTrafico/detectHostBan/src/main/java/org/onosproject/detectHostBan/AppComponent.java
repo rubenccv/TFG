@@ -18,7 +18,6 @@ package org.onosproject.detectHostBan;
 
 import org.onlab.packet.MacAddress;
 import org.onosproject.cfg.ComponentConfigService;
-import org.onosproject.net.ConnectPoint;
 import org.onosproject.net.Host;
 import org.osgi.service.component.ComponentContext;
 import org.osgi.service.component.annotations.Activate;
@@ -102,18 +101,15 @@ public class AppComponent{
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected FlowRuleService flowRuleService;
     
-   // private final FlowRuleListener flowListener = new InternalFlowListener();
-
-    
     private final HashMap<MacAddress,Long> hosts = new HashMap<MacAddress,Long>();    
 
     protected Timer timer;
     public long LIMIT_MB = 1000000; //1MB de maximo de datos
     private static final int DROP_PRIORITY = 129;
-    private int TIMEOUT_SEC = 30;
+    private int TIMEOUT_SEC = 10;
 
-
-
+    //TODO Hacer parametros configurables para el temporizador y el limite de datos
+    //TODO En vez de hacer crear y borrar las reglas hacerlas temporales y context.block() (porque creo que es mas eficiente y quedaria mejor)
     @Activate
     protected void activate() {
         
@@ -153,7 +149,7 @@ public class AppComponent{
         			
         			//En caso de que los datos superen en total baneamos la mac del dispositivo
         			if(totalData>=LIMIT_MB) {
-        				banPings(h.location().deviceId(),macHost);
+        				banDatas(h.location().deviceId(),macHost);
         			}
         		}//Cierre del for
         	}//Cierre del run
@@ -173,7 +169,7 @@ public class AppComponent{
     }
     
     
-    private void banPings(DeviceId deviceId, MacAddress src) {
+    private void banDatas(DeviceId deviceId, MacAddress src) {
     	TrafficSelector selector = DefaultTrafficSelector.builder().matchEthSrc(src).build();
         TrafficTreatment drop = DefaultTrafficTreatment.builder()
                 .drop().build();
@@ -203,16 +199,6 @@ public class AppComponent{
         //Y las aplicamos 
         flowRuleService.applyFlowRules(rule1,rule2);
         
-       /* flowObjectiveService.forward(deviceId, DefaultForwardingObjective.builder()
-                .fromApp(appId)
-                .withSelector(selector)
-                .withTreatment(drop)
-                .withFlag(ForwardingObjective.Flag.VERSATILE)
-                .withPriority(DROP_PRIORITY)
-                .makeTemporary(30)
-                .add());*/
-    	
-
 		timer.schedule(new PingPruner(rule1,rule2), TIMEOUT_SEC * 1000);
         
 		log.error("Baneo aplicado a la MAC: "+src);

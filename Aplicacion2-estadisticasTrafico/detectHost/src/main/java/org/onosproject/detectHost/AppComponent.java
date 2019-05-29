@@ -15,8 +15,6 @@
  */
 package org.onosproject.detectHost;
 
-
-import org.onosproject.cfg.ComponentConfigService;
 import org.onosproject.net.ConnectPoint;
 import org.onosproject.net.Host;
 import org.osgi.service.component.annotations.Activate;
@@ -26,12 +24,11 @@ import org.osgi.service.component.annotations.Reference;
 import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.onosproject.core.ApplicationId;
 import org.onosproject.core.CoreService;
-import org.onosproject.net.device.DeviceService;
-import org.onosproject.net.flow.FlowRuleService;
-import org.onosproject.net.flowobjective.FlowObjectiveService;
+import org.onosproject.net.host.HostEvent;
+import org.onosproject.net.host.HostEvent.Type;
+import org.onosproject.net.host.HostListener;
 import org.onosproject.net.host.HostProbingService;
 import org.onosproject.net.host.HostService;
 import org.onosproject.net.host.ProbeMode;
@@ -50,32 +47,20 @@ public class AppComponent{
 
 	private ApplicationId appId;
 
-
-	@Reference(cardinality = ReferenceCardinality.MANDATORY)
-	protected ComponentConfigService cfgService;
-
 	@Reference(cardinality = ReferenceCardinality.MANDATORY)
 	protected CoreService coreService;
 
-	@Reference(cardinality = ReferenceCardinality.MANDATORY)
-	protected DeviceService deviceService;
-
+	
 	@Reference(cardinality = ReferenceCardinality.MANDATORY)
 	protected HostService hostService;
 
 	@Reference(cardinality = ReferenceCardinality.MANDATORY)
 	protected HostProbingService hostProbingService;
 
-	@Reference(cardinality = ReferenceCardinality.MANDATORY)
-	protected FlowObjectiveService flowObjectiveService;
-
-	@Reference(cardinality = ReferenceCardinality.MANDATORY)
-	protected FlowRuleService flowRuleService;
-
-
 	protected Timer timer1;
 	protected Timer timer2;
 	int cont=0;
+    private final HostListener hostListener = new InternalHostListener();
 
 	public Long LIMIT_MB = 1000000L; //1MB de maximo de datos
 
@@ -84,13 +69,13 @@ public class AppComponent{
 
 		appId = coreService.registerApplication("org.onosproject.detectHost",
 				() -> log.info("Periscope down."));
-		log.info("Started");
+        hostService.addListener(hostListener);
 
+		log.info("Started");
 
 		//Obtenemos los hosts que estan conectados a nuestro dispositivos
 		TimerTask repeatedTask1 = new TimerTask() {
-			public void run() {
-				
+			public void run() {			
 				//Vemos si  los dispositivos conectados a nuestro ONOS estan activos
 				log.error("Number of host connected is: " +hostService.getHostCount());
         		
@@ -102,7 +87,6 @@ public class AppComponent{
 				}			
 			}      		
 		};
-
 		//Esta tarea prueba los hosts que estan conectados
 		TimerTask repeatedTask2 = new TimerTask() {
 			public void run() {
@@ -127,11 +111,23 @@ public class AppComponent{
 
 	@Deactivate
 	protected void deactivate() {
-		cfgService.unregisterProperties(getClass(), false);
 		timer1.cancel();
 		timer2.cancel();
-		flowRuleService.removeFlowRulesById(appId);
+        hostService.removeListener(hostListener);
 		log.info("Stopped");
 	}    
+	
+    // Listens for our removed flows.
+    private class InternalHostListener implements HostListener {
+        public void event(HostEvent event) {
+            Host host = event.subject();
+            if (event.type() == Type.HOST_REMOVED) {
+            	log.info("Host with MAC {} has been removed from port {} and device {}"
+            			,host.mac(),host.location().port(),host.location().deviceId());
+            }
+        }
+    }
+	
+	
 }
 

@@ -78,7 +78,7 @@ import static org.onosproject.net.flow.criteria.Criterion.Type.ETH_DST;
  */
 
 
-
+//Forma deprecated 
 /*    @Property(name = "maxPings", intValue = DEFAULT_MAX_PINGS,
         label = "Maximum number of pings w")
 private int maxPings = DEFAULT_MAX_PINGS;*/
