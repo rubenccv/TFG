@@ -32,6 +32,7 @@ import org.onlab.util.Bandwidth;
 import org.onlab.util.KryoNamespace;
 import org.onlab.util.Tools;
 import org.onosproject.cfg.ComponentConfigService;
+import org.onosproject.cli.net.EthType;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.core.CoreService;
 import org.onosproject.core.GroupId;
@@ -144,1043 +145,1112 @@ import static org.slf4j.LoggerFactory.getLogger;
  * Sample reactive forwarding application.
  */
 @Component(
-    immediate = true,
-    service = ReactiveForwarding.class,
-    property = {
-        PACKET_OUT_ONLY + ":Boolean=" + PACKET_OUT_ONLY_DEFAULT,
-        PACKET_OUT_OFPP_TABLE + ":Boolean=" + PACKET_OUT_OFPP_TABLE_DEFAULT,
-        FLOW_TIMEOUT + ":Integer=" + FLOW_TIMEOUT_DEFAULT,
-        FLOW_PRIORITY  + ":Integer=" + FLOW_PRIORITY_DEFAULT,
-        IPV6_FORWARDING + ":Boolean=" + IPV6_FORWARDING_DEFAULT,
-        MATCH_DST_MAC_ONLY + ":Boolean=" + MATCH_DST_MAC_ONLY_DEFAULT,
-        MATCH_VLAN_ID + ":Boolean=" + MATCH_VLAN_ID_DEFAULT,
-        MATCH_IPV4_ADDRESS + ":Boolean=" + MATCH_IPV4_ADDRESS_DEFAULT,
-        MATCH_IPV4_DSCP + ":Boolean=" + MATCH_IPV4_DSCP_DEFAULT,
-        MATCH_IPV6_ADDRESS + ":Boolean=" + MATCH_IPV6_ADDRESS_DEFAULT,
-        MATCH_IPV6_FLOW_LABEL + ":Boolean=" + MATCH_IPV6_FLOW_LABEL_DEFAULT,
-        MATCH_TCP_UDP_PORTS + ":Boolean=" + MATCH_TCP_UDP_PORTS_DEFAULT,
-        MATCH_ICMP_FIELDS + ":Boolean=" + MATCH_ICMP_FIELDS_DEFAULT,
-        IGNORE_IPV4_MCAST_PACKETS + ":Boolean=" + IGNORE_IPV4_MCAST_PACKETS_DEFAULT,
-        RECORD_METRICS + ":Boolean=" + RECORD_METRICS_DEFAULT
-    }
-)
+		immediate = true,
+		service = ReactiveForwarding.class,
+		property = {
+				PACKET_OUT_ONLY + ":Boolean=" + PACKET_OUT_ONLY_DEFAULT,
+				PACKET_OUT_OFPP_TABLE + ":Boolean=" + PACKET_OUT_OFPP_TABLE_DEFAULT,
+				FLOW_TIMEOUT + ":Integer=" + FLOW_TIMEOUT_DEFAULT,
+				FLOW_PRIORITY  + ":Integer=" + FLOW_PRIORITY_DEFAULT,
+				IPV6_FORWARDING + ":Boolean=" + IPV6_FORWARDING_DEFAULT,
+				MATCH_DST_MAC_ONLY + ":Boolean=" + MATCH_DST_MAC_ONLY_DEFAULT,
+				MATCH_VLAN_ID + ":Boolean=" + MATCH_VLAN_ID_DEFAULT,
+				MATCH_IPV4_ADDRESS + ":Boolean=" + MATCH_IPV4_ADDRESS_DEFAULT,
+				MATCH_IPV4_DSCP + ":Boolean=" + MATCH_IPV4_DSCP_DEFAULT,
+				MATCH_IPV6_ADDRESS + ":Boolean=" + MATCH_IPV6_ADDRESS_DEFAULT,
+				MATCH_IPV6_FLOW_LABEL + ":Boolean=" + MATCH_IPV6_FLOW_LABEL_DEFAULT,
+				MATCH_TCP_UDP_PORTS + ":Boolean=" + MATCH_TCP_UDP_PORTS_DEFAULT,
+				MATCH_ICMP_FIELDS + ":Boolean=" + MATCH_ICMP_FIELDS_DEFAULT,
+				IGNORE_IPV4_MCAST_PACKETS + ":Boolean=" + IGNORE_IPV4_MCAST_PACKETS_DEFAULT,
+				RECORD_METRICS + ":Boolean=" + RECORD_METRICS_DEFAULT
+		}
+		)
 public class ReactiveForwarding {
 
-    private final Logger log = getLogger(getClass());
+	private final Logger log = getLogger(getClass());
 
-    @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected TopologyService topologyService;
+	@Reference(cardinality = ReferenceCardinality.MANDATORY)
+	protected TopologyService topologyService;
 
-    @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected PacketService packetService;
+	@Reference(cardinality = ReferenceCardinality.MANDATORY)
+	protected PacketService packetService;
 
-    @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected HostService hostService;
+	@Reference(cardinality = ReferenceCardinality.MANDATORY)
+	protected HostService hostService;
 
-    @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected FlowRuleService flowRuleService;
-    
-    @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected DeviceService deviceService;
+	@Reference(cardinality = ReferenceCardinality.MANDATORY)
+	protected FlowRuleService flowRuleService;
 
-    @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected FlowObjectiveService flowObjectiveService;
+	@Reference(cardinality = ReferenceCardinality.MANDATORY)
+	protected DeviceService deviceService;
 
-    @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected CoreService coreService;
-    
-    @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected GroupService groupService;
+	@Reference(cardinality = ReferenceCardinality.MANDATORY)
+	protected FlowObjectiveService flowObjectiveService;
 
-    @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected ComponentConfigService cfgService;
+	@Reference(cardinality = ReferenceCardinality.MANDATORY)
+	protected CoreService coreService;
 
-    @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected StorageService storageService;
+	@Reference(cardinality = ReferenceCardinality.MANDATORY)
+	protected GroupService groupService;
 
-    private ReactivePacketProcessor processor = new ReactivePacketProcessor();
+	@Reference(cardinality = ReferenceCardinality.MANDATORY)
+	protected ComponentConfigService cfgService;
 
-    private  EventuallyConsistentMap<MacAddress, ReactiveForwardMetrics> metrics;
+	@Reference(cardinality = ReferenceCardinality.MANDATORY)
+	protected StorageService storageService;
 
-    private ApplicationId appId;
+	private ReactivePacketProcessor processor = new ReactivePacketProcessor();
 
-    /** Enable packet-out only forwarding; default is false. */
-    private boolean packetOutOnly = PACKET_OUT_ONLY_DEFAULT;
+	private  EventuallyConsistentMap<MacAddress, ReactiveForwardMetrics> metrics;
 
-    /** Enable first packet forwarding using OFPP_TABLE port instead of PacketOut with actual port; default is false. */
-    private boolean packetOutOfppTable = PACKET_OUT_OFPP_TABLE_DEFAULT;
+	private ApplicationId appId;
 
-    /** Configure Flow Timeout for installed flow rules; default is 10 sec. */
-    private int flowTimeout = FLOW_TIMEOUT_DEFAULT;
+	/** Enable packet-out only forwarding; default is false. */
+	private boolean packetOutOnly = PACKET_OUT_ONLY_DEFAULT;
 
-    /** Configure Flow Priority for installed flow rules; default is 10. */
-    private int flowPriority = FLOW_PRIORITY_DEFAULT;
+	/** Enable first packet forwarding using OFPP_TABLE port instead of PacketOut with actual port; default is false. */
+	private boolean packetOutOfppTable = PACKET_OUT_OFPP_TABLE_DEFAULT;
 
-    /** Enable IPv6 forwarding; default is false. */
-    private boolean ipv6Forwarding = IPV6_FORWARDING_DEFAULT;
+	/** Configure Flow Timeout for installed flow rules; default is 10 sec. */
+	private int flowTimeout = FLOW_TIMEOUT_DEFAULT;
 
-    /** Enable matching Dst Mac Only; default is false. */
-    private boolean matchDstMacOnly = MATCH_DST_MAC_ONLY_DEFAULT;
+	/** Configure Flow Priority for installed flow rules; default is 10. */
+	private int flowPriority = FLOW_PRIORITY_DEFAULT;
 
-    /** Enable matching Vlan ID; default is false. */
-    private boolean matchVlanId = MATCH_VLAN_ID_DEFAULT;
+	/** Enable IPv6 forwarding; default is false. */
+	private boolean ipv6Forwarding = IPV6_FORWARDING_DEFAULT;
 
-    /** Enable matching IPv4 Addresses; default is false. */
-    private boolean matchIpv4Address = MATCH_IPV4_ADDRESS_DEFAULT;
+	/** Enable matching Dst Mac Only; default is false. */
+	private boolean matchDstMacOnly = MATCH_DST_MAC_ONLY_DEFAULT;
 
-    /** Enable matching IPv4 DSCP and ECN; default is false. */
-    private boolean matchIpv4Dscp = MATCH_IPV4_DSCP_DEFAULT;
+	/** Enable matching Vlan ID; default is false. */
+	private boolean matchVlanId = MATCH_VLAN_ID_DEFAULT;
 
-    /** Enable matching IPv6 Addresses; default is false. */
-    private boolean matchIpv6Address = MATCH_IPV6_ADDRESS_DEFAULT;
+	/** Enable matching IPv4 Addresses; default is false. */
+	private boolean matchIpv4Address = MATCH_IPV4_ADDRESS_DEFAULT;
 
-    /** Enable matching IPv6 FlowLabel; default is false. */
-    private boolean matchIpv6FlowLabel = MATCH_IPV6_FLOW_LABEL_DEFAULT;
+	/** Enable matching IPv4 DSCP and ECN; default is false. */
+	private boolean matchIpv4Dscp = MATCH_IPV4_DSCP_DEFAULT;
 
-    /** Enable matching TCP/UDP ports; default is false. */
-    private boolean matchTcpUdpPorts = MATCH_TCP_UDP_PORTS_DEFAULT;
+	/** Enable matching IPv6 Addresses; default is false. */
+	private boolean matchIpv6Address = MATCH_IPV6_ADDRESS_DEFAULT;
 
-    /** Enable matching ICMPv4 and ICMPv6 fields; default is false. */
-    private boolean matchIcmpFields = MATCH_ICMP_FIELDS_DEFAULT;
+	/** Enable matching IPv6 FlowLabel; default is false. */
+	private boolean matchIpv6FlowLabel = MATCH_IPV6_FLOW_LABEL_DEFAULT;
 
-    /** Ignore (do not forward) IPv4 multicast packets; default is false. */
-    private boolean ignoreIPv4Multicast = IGNORE_IPV4_MCAST_PACKETS_DEFAULT;
+	/** Enable matching TCP/UDP ports; default is false. */
+	private boolean matchTcpUdpPorts = MATCH_TCP_UDP_PORTS_DEFAULT;
 
-    /** Enable record metrics for reactive forwarding. */
-    private boolean recordMetrics = RECORD_METRICS_DEFAULT;
+	/** Enable matching ICMPv4 and ICMPv6 fields; default is false. */
+	private boolean matchIcmpFields = MATCH_ICMP_FIELDS_DEFAULT;
 
-    private final TopologyListener topologyListener = new InternalTopologyListener();
+	/** Ignore (do not forward) IPv4 multicast packets; default is false. */
+	private boolean ignoreIPv4Multicast = IGNORE_IPV4_MCAST_PACKETS_DEFAULT;
 
-    private ExecutorService blackHoleExecutor;
-    
-    long puerto1 = 11;
-    long puerto2 = 12;
-    long puerto3 = 13;
-    long puerto4 = 14;
-    long bitsPorSegundo = 0;
-    GroupBuckets gbs;
-    DefaultGroupKey k;
-    protected Timer timer; 
-    Long temporizadorTarea = 20L;
+	/** Enable record metrics for reactive forwarding. */
+	private boolean recordMetrics = RECORD_METRICS_DEFAULT;
+
+	private final TopologyListener topologyListener = new InternalTopologyListener();
+
+	private ExecutorService blackHoleExecutor;
+
+	long puerto1 = 11;
+	long puerto2 = 12;
+	long puerto3 = 13;
+	long puerto4 = 14;
+	long bitsPorSegundo = 0;
+	GroupBuckets gbs;
+	DefaultGroupKey k;
+	protected Timer timer; 
+	Long temporizadorTarea = 20L;
 
 
-    @Activate
-    public void activate(ComponentContext context) {
-        KryoNamespace.Builder metricSerializer = KryoNamespace.newBuilder()
-                .register(KryoNamespaces.API)
-                .register(ReactiveForwardMetrics.class)
-                .register(MultiValuedTimestamp.class);
-        metrics =  storageService.<MacAddress, ReactiveForwardMetrics>eventuallyConsistentMapBuilder()
-                .withName("metrics-fwd")
-                .withSerializer(metricSerializer)
-                .withTimestampProvider((key, metricsData) -> new
-                        MultiValuedTimestamp<>(new WallClockTimestamp(), System.nanoTime()))
-                .build();
+	@Activate
+	public void activate(ComponentContext context) {
+		KryoNamespace.Builder metricSerializer = KryoNamespace.newBuilder()
+				.register(KryoNamespaces.API)
+				.register(ReactiveForwardMetrics.class)
+				.register(MultiValuedTimestamp.class);
+		metrics =  storageService.<MacAddress, ReactiveForwardMetrics>eventuallyConsistentMapBuilder()
+				.withName("metrics-fwd")
+				.withSerializer(metricSerializer)
+				.withTimestampProvider((key, metricsData) -> new
+						MultiValuedTimestamp<>(new WallClockTimestamp(), System.nanoTime()))
+				.build();
 
-        blackHoleExecutor = newSingleThreadExecutor(groupedThreads("onos/app/fwd",
-                                                                   "black-hole-fixer",
-                                                                   log));
+		blackHoleExecutor = newSingleThreadExecutor(groupedThreads("onos/app/fwd",
+				"black-hole-fixer",
+				log));
 
-        cfgService.registerProperties(getClass());
-        appId = coreService.registerApplication("org.onosproject.fwdBalanceo");
+		cfgService.registerProperties(getClass());
+		appId = coreService.registerApplication("org.onosproject.fwdBalanceo");
 
-        packetService.addProcessor(processor, PacketProcessor.director(2));
-        topologyService.addListener(topologyListener);
-        readComponentConfiguration(context);
-        requestIntercepts();
+		packetService.addProcessor(processor, PacketProcessor.director(2));
+		topologyService.addListener(topologyListener);
+		readComponentConfiguration(context);
+		requestIntercepts();
 
-        log.info("Started", appId.id());
-        
+		log.info("Activada aplicacion fwdBalanceo", appId.id());
+
 		byte[] key = {5};
 		k = new DefaultGroupKey(key);
-		
-		Iterable<Device> devices = deviceService.getDevices(); 
-		
-		List<GroupBucket> listGroup = new ArrayList<GroupBucket>();
-		
-		for(Device d:devices) {
-			
-            TrafficTreatment sendPort = DefaultTrafficTreatment.builder()
-                    .setOutput(PortNumber.portNumber(puerto1)).build();
-            
-    		GroupBucket gb = DefaultGroupBucket.createSelectGroupBucket(sendPort);
-    		
-    		listGroup.add(gb);
 
-    		gbs = new GroupBuckets(listGroup);
-    		
-			DefaultGroupDescription degd = new DefaultGroupDescription(d.id(), GroupDescription.Type.SELECT,gbs,k,137,appId);
+		Iterable<Device> devices = deviceService.getDevices(); 
+
+		List<GroupBucket> listGroup = new ArrayList<GroupBucket>();
+
+		/*Creamos el grupo al que le ponemos que cuando se mande por el, él tratamiento sea enviarlo por 
+		el puerto1*/ 
+		for(Device d:devices) {
+			TrafficTreatment sendPort = DefaultTrafficTreatment.builder()
+					.setOutput(PortNumber.portNumber(puerto1)).build();
+
+			GroupBucket gb = DefaultGroupBucket.createSelectGroupBucket(sendPort);
+
+			listGroup.add(gb);
+
+			gbs = new GroupBuckets(listGroup);
+
+			DefaultGroupDescription degd = new DefaultGroupDescription(d.id(), GroupDescription.Type.SELECT,
+					gbs,k,137,appId);
 
 			DefaultGroup dgd = new DefaultGroup(new GroupId(137),degd);
 
 			groupService.addGroup(dgd);		
 		}
-        
-        TimerTask tarea = new TimerTask() {
-        	public void run() {
-        		//Obtenemos las estadisticas para los puertos del OVS1
-                Iterable<Device> devices = deviceService.getDevices(); 
-                for (Device d: devices) {
-                	bitsPorSegundo = 0;
-                    log.warn("Device id " + d.id().toString());
-                	List<Port> ports = deviceService.getPorts(d.id());
-                	
-                	for (Port p: ports) {		
-                		//log.info("Velocidad puerto " + p.number().toLong() + " es: " +p.portSpeed());
 
-                		//Para cada puerto vemos el trafico de salida que tiene
-                        PortStatistics traffic = deviceService.getDeltaStatisticsForPort(d.id(), p.number());
-                		if(traffic!=null)
-                			bitsPorSegundo = bitsPorSegundo + (traffic.bytesSent()*8)/temporizadorTarea;        		
-                		else
-                			log.error("Unable to read portStats");
-                		
+		TimerTask tarea = new TimerTask() {
+			public void run() {
+				//Obtenemos las estadisticas para los puertos del OVS1
+				Iterable<Device> devices = deviceService.getDevices(); 
+				for (Device d: devices) {
+					bitsPorSegundo = 0;
+					log.warn("Device id " + d.id().toString());
+					List<Port> ports = deviceService.getPorts(d.id());
 
-                	}//Cierre del for ports
-            			log.error("Bits: "+bitsPorSegundo);
-                		//Creamos el grupo en el que metemos el puerto 10 ya que siempre se va a mandar minimo por ahi
-                		            			
-                        TrafficTreatment sendPort = DefaultTrafficTreatment.builder()
+					for (Port p: ports) {		
+						//log.info("Velocidad puerto " + p.number().toLong() + " es: " +p.portSpeed());
+
+						//Para cada puerto vemos el trafico de salida que tiene
+						PortStatistics traffic = deviceService.getDeltaStatisticsForPort(d.id(), p.number());
+						//Y sumamos el trafico total que esta habiendo por la red en bps
+						if(traffic!=null)
+							bitsPorSegundo = bitsPorSegundo + (traffic.bytesSent()*8)/temporizadorTarea;        		
+						else
+							log.error("Unable to read portStats");
+
+
+					}//Cierre del for ports
+					log.error("Bits: "+bitsPorSegundo);
+
+					//Como la parte de arriba esta en un bucle no queda otra que volver a crear el GroupBucket
+
+
+					List<GroupBucket> listGroup = new ArrayList<GroupBucket>();
+
+					TrafficTreatment sendPort = DefaultTrafficTreatment.builder()
                                 .setOutput(PortNumber.portNumber(puerto1)).build();
-                        
+
                 		GroupBucket gb = DefaultGroupBucket.createSelectGroupBucket(sendPort);
 
-                		List<GroupBucket> listGroup = new ArrayList<GroupBucket>();
                 		listGroup.add(gb);
-                		//Si los bits por segundo superan ciertos umbrales vamos aumentando los puertos por los cuales mandar el trafico
-                		if(bitsPorSegundo>=100000) { //100kbps
-                			//Añadimos al grupo el puerto 11
-                			log.warn("Anadido puerto 2");
-                            TrafficTreatment sendPort2 = DefaultTrafficTreatment.builder()
-                                    .setOutput(PortNumber.portNumber(puerto2)).build();
-                    		GroupBucket gb2 = DefaultGroupBucket.createSelectGroupBucket(sendPort2);
 
-                    		listGroup.add(gb2);
-                			
-                		}
-                		if(bitsPorSegundo>=200000) { //20Mbps
-                			//Añadimos al grupo el puerto 12
-                			log.warn("Anadido puerto 3");
-                			TrafficTreatment sendPort3 = DefaultTrafficTreatment.builder()
-                                    .setOutput(PortNumber.portNumber(puerto3)).build();
-                    		GroupBucket gb3 = DefaultGroupBucket.createSelectGroupBucket(sendPort3);
+					/*Si los bits por segundo superan ciertos umbrales vamos aumentando los puertos 
+                		por los cuales mandar el trafico.
 
-                    		listGroup.add(gb3);
-                			
-                		}
-                		if(bitsPorSegundo>=300000) {
-                			//Añadimos al grupo el puerto 13
-                			log.warn("Anadido puerto 4");
-                            TrafficTreatment sendPort4 = DefaultTrafficTreatment.builder()
-                                    .setOutput(PortNumber.portNumber(puerto4)).build();
-                    		GroupBucket gb4 = DefaultGroupBucket.createSelectGroupBucket(sendPort4);
+                		Con este codigo ya tenemos implementado el grupo, falta decirle cuando actuar
+					 */
+					if(bitsPorSegundo>=20000) { //100kbps
+						//Añadimos al grupo el puerto 11
+						log.warn("Anadido puerto 2");
+						TrafficTreatment sendPort2 = DefaultTrafficTreatment.builder()
+								.setOutput(PortNumber.portNumber(puerto2)).build();
+						GroupBucket gb2 = DefaultGroupBucket.createSelectGroupBucket(sendPort2);
 
-                    		listGroup.add(gb4);
-                			
-                		}
-                		
-            			gbs = new GroupBuckets(listGroup);
-                		groupService.setBucketsForGroup(d.id(), k, gbs, k, appId);
-            		/*	groupService.removeBucketsFromGroup(d.id(),k, gbs, null, appId);
+						listGroup.add(gb2);	
+					}
+					if(bitsPorSegundo>=30000) { //20Mbps
+						//Añadimos al grupo el puerto 12
+						log.warn("Anadido puerto 3");
+						TrafficTreatment sendPort3 = DefaultTrafficTreatment.builder()
+								.setOutput(PortNumber.portNumber(puerto3)).build();
+						GroupBucket gb3 = DefaultGroupBucket.createSelectGroupBucket(sendPort3);
+
+						listGroup.add(gb3);
+					}
+					if(bitsPorSegundo>=50000) {
+						//Añadimos al grupo el puerto 13
+						log.warn("Anadido puerto 4");
+						TrafficTreatment sendPort4 = DefaultTrafficTreatment.builder()
+								.setOutput(PortNumber.portNumber(puerto4)).build();
+						GroupBucket gb4 = DefaultGroupBucket.createSelectGroupBucket(sendPort4);
+
+						listGroup.add(gb4);              			
+					}
+
+					gbs = new GroupBuckets(listGroup);
+					groupService.setBucketsForGroup(d.id(), k, gbs, k, appId);
+					/*	groupService.removeBucketsFromGroup(d.id(),k, gbs, null, appId);
             			groupService.addBucketsToGroup(d.id(), k, gbs, null, appId);*/
-            			
-                }
-        		
-        	}
-        };
-        
-        //Creamos el temporizador para la tarea
-        timer = new Timer("Timer");
-        long delay = 1000L; // We start polling statistics after 1 second
-        long period = 1000L * temporizadorTarea; // Every 30 seconds we get the statistics
-        timer.scheduleAtFixedRate(tarea, delay, period);
-        
-        
-        
-    }
+				}
 
-    @Deactivate
-    public void deactivate() {
-        cfgService.unregisterProperties(getClass(), false);
-        withdrawIntercepts();
-        flowRuleService.removeFlowRulesById(appId);
-        packetService.removeProcessor(processor);
-        groupService.purgeGroupEntries();
-        timer.cancel();
-        topologyService.removeListener(topologyListener);
-        blackHoleExecutor.shutdown();
-        blackHoleExecutor = null;
-        processor = null;
-        log.info("Stopped");
-    }
+			}
+		};
 
-    @Modified
-    public void modified(ComponentContext context) {
-        readComponentConfiguration(context);
-        requestIntercepts();
-    }
+		//Creamos el temporizador para la tarea
+		timer = new Timer("Timer");
+		long delay = 1000L; // We start polling statistics after 1 second
+		long period = 1000L * temporizadorTarea; // Every 30 seconds we get the statistics
+		timer.scheduleAtFixedRate(tarea, delay, period);
 
-    /**
-     * Request packet in via packet service.
-     */
-    private void requestIntercepts() {
-        TrafficSelector.Builder selector = DefaultTrafficSelector.builder();
-        selector.matchEthType(Ethernet.TYPE_IPV4);
-        packetService.requestPackets(selector.build(), PacketPriority.REACTIVE, appId);
+	}
 
-        selector.matchEthType(Ethernet.TYPE_IPV6);
-        if (ipv6Forwarding) {
-            packetService.requestPackets(selector.build(), PacketPriority.REACTIVE, appId);
-        } else {
-            packetService.cancelPackets(selector.build(), PacketPriority.REACTIVE, appId);
-        }
-    }
+	@Deactivate
+	public void deactivate() {
+		cfgService.unregisterProperties(getClass(), false);
+		withdrawIntercepts();
+		flowRuleService.removeFlowRulesById(appId);
+		packetService.removeProcessor(processor);
+		groupService.purgeGroupEntries();
+		timer.cancel();
+		topologyService.removeListener(topologyListener);
+		blackHoleExecutor.shutdown();
+		blackHoleExecutor = null;
+		processor = null;
+		log.info("Stopped");
+	}
 
-    /**
-     * Cancel request for packet in via packet service.
-     */
-    private void withdrawIntercepts() {
-        TrafficSelector.Builder selector = DefaultTrafficSelector.builder();
-        selector.matchEthType(Ethernet.TYPE_IPV4);
-        packetService.cancelPackets(selector.build(), PacketPriority.REACTIVE, appId);
-        selector.matchEthType(Ethernet.TYPE_IPV6);
-        packetService.cancelPackets(selector.build(), PacketPriority.REACTIVE, appId);
-    }
+	@Modified
+	public void modified(ComponentContext context) {
+		readComponentConfiguration(context);
+		requestIntercepts();
+	}
 
-    /**
-     * Extracts properties from the component configuration context.
-     *
-     * @param context the component context
-     */
-    private void readComponentConfiguration(ComponentContext context) {
-        Dictionary<?, ?> properties = context.getProperties();
+	/**
+	 * Request packet in via packet service.
+	 */
+	private void requestIntercepts() {
+		TrafficSelector.Builder selector = DefaultTrafficSelector.builder();
+		selector.matchEthType(Ethernet.TYPE_IPV4);
+		packetService.requestPackets(selector.build(), PacketPriority.REACTIVE, appId);
 
-        Boolean packetOutOnlyEnabled =
-                Tools.isPropertyEnabled(properties, PACKET_OUT_ONLY);
-        if (packetOutOnlyEnabled == null) {
-            log.info("Packet-out is not configured, " +
-                     "using current value of {}", packetOutOnly);
-        } else {
-            packetOutOnly = packetOutOnlyEnabled;
-            log.info("Configured. Packet-out only forwarding is {}",
-                    packetOutOnly ? "enabled" : "disabled");
-        }
+		selector.matchEthType(Ethernet.TYPE_IPV6);
+		if (ipv6Forwarding) {
+			packetService.requestPackets(selector.build(), PacketPriority.REACTIVE, appId);
+		} else {
+			packetService.cancelPackets(selector.build(), PacketPriority.REACTIVE, appId);
+		}
+	}
 
-        Boolean packetOutOfppTableEnabled =
-                Tools.isPropertyEnabled(properties, PACKET_OUT_OFPP_TABLE);
-        if (packetOutOfppTableEnabled == null) {
-            log.info("OFPP_TABLE port is not configured, " +
-                     "using current value of {}", packetOutOfppTable);
-        } else {
-            packetOutOfppTable = packetOutOfppTableEnabled;
-            log.info("Configured. Forwarding using OFPP_TABLE port is {}",
-                    packetOutOfppTable ? "enabled" : "disabled");
-        }
+	/**
+	 * Cancel request for packet in via packet service.
+	 */
+	private void withdrawIntercepts() {
+		TrafficSelector.Builder selector = DefaultTrafficSelector.builder();
+		selector.matchEthType(Ethernet.TYPE_IPV4);
+		packetService.cancelPackets(selector.build(), PacketPriority.REACTIVE, appId);
+		selector.matchEthType(Ethernet.TYPE_IPV6);
+		packetService.cancelPackets(selector.build(), PacketPriority.REACTIVE, appId);
+	}
 
-        Boolean ipv6ForwardingEnabled =
-                Tools.isPropertyEnabled(properties, IPV6_FORWARDING);
-        if (ipv6ForwardingEnabled == null) {
-            log.info("IPv6 forwarding is not configured, " +
-                     "using current value of {}", ipv6Forwarding);
-        } else {
-            ipv6Forwarding = ipv6ForwardingEnabled;
-            log.info("Configured. IPv6 forwarding is {}",
-                    ipv6Forwarding ? "enabled" : "disabled");
-        }
+	/**
+	 * Extracts properties from the component configuration context.
+	 *
+	 * @param context the component context
+	 */
+	private void readComponentConfiguration(ComponentContext context) {
+		Dictionary<?, ?> properties = context.getProperties();
 
-        Boolean matchDstMacOnlyEnabled =
-                Tools.isPropertyEnabled(properties, MATCH_DST_MAC_ONLY);
-        if (matchDstMacOnlyEnabled == null) {
-            log.info("Match Dst MAC is not configured, " +
-                     "using current value of {}", matchDstMacOnly);
-        } else {
-            matchDstMacOnly = matchDstMacOnlyEnabled;
-            log.info("Configured. Match Dst MAC Only is {}",
-                    matchDstMacOnly ? "enabled" : "disabled");
-        }
+		Boolean packetOutOnlyEnabled =
+				Tools.isPropertyEnabled(properties, PACKET_OUT_ONLY);
+		if (packetOutOnlyEnabled == null) {
+			log.info("Packet-out is not configured, " +
+					"using current value of {}", packetOutOnly);
+		} else {
+			packetOutOnly = packetOutOnlyEnabled;
+			log.info("Configured. Packet-out only forwarding is {}",
+					packetOutOnly ? "enabled" : "disabled");
+		}
 
-        Boolean matchVlanIdEnabled =
-                Tools.isPropertyEnabled(properties, MATCH_VLAN_ID);
-        if (matchVlanIdEnabled == null) {
-            log.info("Matching Vlan ID is not configured, " +
-                     "using current value of {}", matchVlanId);
-        } else {
-            matchVlanId = matchVlanIdEnabled;
-            log.info("Configured. Matching Vlan ID is {}",
-                    matchVlanId ? "enabled" : "disabled");
-        }
+		Boolean packetOutOfppTableEnabled =
+				Tools.isPropertyEnabled(properties, PACKET_OUT_OFPP_TABLE);
+		if (packetOutOfppTableEnabled == null) {
+			log.info("OFPP_TABLE port is not configured, " +
+					"using current value of {}", packetOutOfppTable);
+		} else {
+			packetOutOfppTable = packetOutOfppTableEnabled;
+			log.info("Configured. Forwarding using OFPP_TABLE port is {}",
+					packetOutOfppTable ? "enabled" : "disabled");
+		}
 
-        Boolean matchIpv4AddressEnabled =
-                Tools.isPropertyEnabled(properties, MATCH_IPV4_ADDRESS);
-        if (matchIpv4AddressEnabled == null) {
-            log.info("Matching IPv4 Address is not configured, " +
-                     "using current value of {}", matchIpv4Address);
-        } else {
-            matchIpv4Address = matchIpv4AddressEnabled;
-            log.info("Configured. Matching IPv4 Addresses is {}",
-                    matchIpv4Address ? "enabled" : "disabled");
-        }
+		Boolean ipv6ForwardingEnabled =
+				Tools.isPropertyEnabled(properties, IPV6_FORWARDING);
+		if (ipv6ForwardingEnabled == null) {
+			log.info("IPv6 forwarding is not configured, " +
+					"using current value of {}", ipv6Forwarding);
+		} else {
+			ipv6Forwarding = ipv6ForwardingEnabled;
+			log.info("Configured. IPv6 forwarding is {}",
+					ipv6Forwarding ? "enabled" : "disabled");
+		}
 
-        Boolean matchIpv4DscpEnabled =
-                Tools.isPropertyEnabled(properties, MATCH_IPV4_DSCP);
-        if (matchIpv4DscpEnabled == null) {
-            log.info("Matching IPv4 DSCP and ECN is not configured, " +
-                     "using current value of {}", matchIpv4Dscp);
-        } else {
-            matchIpv4Dscp = matchIpv4DscpEnabled;
-            log.info("Configured. Matching IPv4 DSCP and ECN is {}",
-                    matchIpv4Dscp ? "enabled" : "disabled");
-        }
+		Boolean matchDstMacOnlyEnabled =
+				Tools.isPropertyEnabled(properties, MATCH_DST_MAC_ONLY);
+		if (matchDstMacOnlyEnabled == null) {
+			log.info("Match Dst MAC is not configured, " +
+					"using current value of {}", matchDstMacOnly);
+		} else {
+			matchDstMacOnly = matchDstMacOnlyEnabled;
+			log.info("Configured. Match Dst MAC Only is {}",
+					matchDstMacOnly ? "enabled" : "disabled");
+		}
 
-        Boolean matchIpv6AddressEnabled =
-                Tools.isPropertyEnabled(properties, MATCH_IPV6_ADDRESS);
-        if (matchIpv6AddressEnabled == null) {
-            log.info("Matching IPv6 Address is not configured, " +
-                     "using current value of {}", matchIpv6Address);
-        } else {
-            matchIpv6Address = matchIpv6AddressEnabled;
-            log.info("Configured. Matching IPv6 Addresses is {}",
-                    matchIpv6Address ? "enabled" : "disabled");
-        }
+		Boolean matchVlanIdEnabled =
+				Tools.isPropertyEnabled(properties, MATCH_VLAN_ID);
+		if (matchVlanIdEnabled == null) {
+			log.info("Matching Vlan ID is not configured, " +
+					"using current value of {}", matchVlanId);
+		} else {
+			matchVlanId = matchVlanIdEnabled;
+			log.info("Configured. Matching Vlan ID is {}",
+					matchVlanId ? "enabled" : "disabled");
+		}
 
-        Boolean matchIpv6FlowLabelEnabled =
-                Tools.isPropertyEnabled(properties, MATCH_IPV6_FLOW_LABEL);
-        if (matchIpv6FlowLabelEnabled == null) {
-            log.info("Matching IPv6 FlowLabel is not configured, " +
-                     "using current value of {}", matchIpv6FlowLabel);
-        } else {
-            matchIpv6FlowLabel = matchIpv6FlowLabelEnabled;
-            log.info("Configured. Matching IPv6 FlowLabel is {}",
-                    matchIpv6FlowLabel ? "enabled" : "disabled");
-        }
+		Boolean matchIpv4AddressEnabled =
+				Tools.isPropertyEnabled(properties, MATCH_IPV4_ADDRESS);
+		if (matchIpv4AddressEnabled == null) {
+			log.info("Matching IPv4 Address is not configured, " +
+					"using current value of {}", matchIpv4Address);
+		} else {
+			matchIpv4Address = matchIpv4AddressEnabled;
+			log.info("Configured. Matching IPv4 Addresses is {}",
+					matchIpv4Address ? "enabled" : "disabled");
+		}
 
-        Boolean matchTcpUdpPortsEnabled =
-                Tools.isPropertyEnabled(properties, MATCH_TCP_UDP_PORTS);
-        if (matchTcpUdpPortsEnabled == null) {
-            log.info("Matching TCP/UDP fields is not configured, " +
-                     "using current value of {}", matchTcpUdpPorts);
-        } else {
-            matchTcpUdpPorts = matchTcpUdpPortsEnabled;
-            log.info("Configured. Matching TCP/UDP fields is {}",
-                    matchTcpUdpPorts ? "enabled" : "disabled");
-        }
+		Boolean matchIpv4DscpEnabled =
+				Tools.isPropertyEnabled(properties, MATCH_IPV4_DSCP);
+		if (matchIpv4DscpEnabled == null) {
+			log.info("Matching IPv4 DSCP and ECN is not configured, " +
+					"using current value of {}", matchIpv4Dscp);
+		} else {
+			matchIpv4Dscp = matchIpv4DscpEnabled;
+			log.info("Configured. Matching IPv4 DSCP and ECN is {}",
+					matchIpv4Dscp ? "enabled" : "disabled");
+		}
 
-        Boolean matchIcmpFieldsEnabled =
-                Tools.isPropertyEnabled(properties, MATCH_ICMP_FIELDS);
-        if (matchIcmpFieldsEnabled == null) {
-            log.info("Matching ICMP (v4 and v6) fields is not configured, " +
-                     "using current value of {}", matchIcmpFields);
-        } else {
-            matchIcmpFields = matchIcmpFieldsEnabled;
-            log.info("Configured. Matching ICMP (v4 and v6) fields is {}",
-                    matchIcmpFields ? "enabled" : "disabled");
-        }
+		Boolean matchIpv6AddressEnabled =
+				Tools.isPropertyEnabled(properties, MATCH_IPV6_ADDRESS);
+		if (matchIpv6AddressEnabled == null) {
+			log.info("Matching IPv6 Address is not configured, " +
+					"using current value of {}", matchIpv6Address);
+		} else {
+			matchIpv6Address = matchIpv6AddressEnabled;
+			log.info("Configured. Matching IPv6 Addresses is {}",
+					matchIpv6Address ? "enabled" : "disabled");
+		}
 
-        Boolean ignoreIpv4McastPacketsEnabled =
-                Tools.isPropertyEnabled(properties, IGNORE_IPV4_MCAST_PACKETS);
-        if (ignoreIpv4McastPacketsEnabled == null) {
-            log.info("Ignore IPv4 multi-cast packet is not configured, " +
-                     "using current value of {}", ignoreIPv4Multicast);
-        } else {
-            ignoreIPv4Multicast = ignoreIpv4McastPacketsEnabled;
-            log.info("Configured. Ignore IPv4 multicast packets is {}",
-                    ignoreIPv4Multicast ? "enabled" : "disabled");
-        }
-        Boolean recordMetricsEnabled =
-                Tools.isPropertyEnabled(properties, RECORD_METRICS);
-        if (recordMetricsEnabled == null) {
-            log.info("IConfigured. Ignore record metrics  is {} ," +
-                    "using current value of {}", recordMetrics);
-        } else {
-            recordMetrics = recordMetricsEnabled;
-            log.info("Configured. record metrics  is {}",
-                    recordMetrics ? "enabled" : "disabled");
-        }
+		Boolean matchIpv6FlowLabelEnabled =
+				Tools.isPropertyEnabled(properties, MATCH_IPV6_FLOW_LABEL);
+		if (matchIpv6FlowLabelEnabled == null) {
+			log.info("Matching IPv6 FlowLabel is not configured, " +
+					"using current value of {}", matchIpv6FlowLabel);
+		} else {
+			matchIpv6FlowLabel = matchIpv6FlowLabelEnabled;
+			log.info("Configured. Matching IPv6 FlowLabel is {}",
+					matchIpv6FlowLabel ? "enabled" : "disabled");
+		}
 
-        flowTimeout = Tools.getIntegerProperty(properties, FLOW_TIMEOUT, FLOW_TIMEOUT_DEFAULT);
-        log.info("Configured. Flow Timeout is configured to {} seconds", flowTimeout);
+		Boolean matchTcpUdpPortsEnabled =
+				Tools.isPropertyEnabled(properties, MATCH_TCP_UDP_PORTS);
+		if (matchTcpUdpPortsEnabled == null) {
+			log.info("Matching TCP/UDP fields is not configured, " +
+					"using current value of {}", matchTcpUdpPorts);
+		} else {
+			matchTcpUdpPorts = matchTcpUdpPortsEnabled;
+			log.info("Configured. Matching TCP/UDP fields is {}",
+					matchTcpUdpPorts ? "enabled" : "disabled");
+		}
 
-        flowPriority = Tools.getIntegerProperty(properties, FLOW_PRIORITY, FLOW_PRIORITY_DEFAULT);
-        log.info("Configured. Flow Priority is configured to {}", flowPriority);
-    }
+		Boolean matchIcmpFieldsEnabled =
+				Tools.isPropertyEnabled(properties, MATCH_ICMP_FIELDS);
+		if (matchIcmpFieldsEnabled == null) {
+			log.info("Matching ICMP (v4 and v6) fields is not configured, " +
+					"using current value of {}", matchIcmpFields);
+		} else {
+			matchIcmpFields = matchIcmpFieldsEnabled;
+			log.info("Configured. Matching ICMP (v4 and v6) fields is {}",
+					matchIcmpFields ? "enabled" : "disabled");
+		}
 
-    /**
-     * Packet processor responsible for forwarding packets along their paths.
-     */
-    private class ReactivePacketProcessor implements PacketProcessor {
+		Boolean ignoreIpv4McastPacketsEnabled =
+				Tools.isPropertyEnabled(properties, IGNORE_IPV4_MCAST_PACKETS);
+		if (ignoreIpv4McastPacketsEnabled == null) {
+			log.info("Ignore IPv4 multi-cast packet is not configured, " +
+					"using current value of {}", ignoreIPv4Multicast);
+		} else {
+			ignoreIPv4Multicast = ignoreIpv4McastPacketsEnabled;
+			log.info("Configured. Ignore IPv4 multicast packets is {}",
+					ignoreIPv4Multicast ? "enabled" : "disabled");
+		}
+		Boolean recordMetricsEnabled =
+				Tools.isPropertyEnabled(properties, RECORD_METRICS);
+		if (recordMetricsEnabled == null) {
+			log.info("IConfigured. Ignore record metrics  is {} ," +
+					"using current value of {}", recordMetrics);
+		} else {
+			recordMetrics = recordMetricsEnabled;
+			log.info("Configured. record metrics  is {}",
+					recordMetrics ? "enabled" : "disabled");
+		}
 
-        @Override
-        public void process(PacketContext context) {
-            // Stop processing if the packet has been handled, since we
-            // can't do any more to it.
+		flowTimeout = Tools.getIntegerProperty(properties, FLOW_TIMEOUT, FLOW_TIMEOUT_DEFAULT);
+		log.info("Configured. Flow Timeout is configured to {} seconds", flowTimeout);
 
-            if (context.isHandled()) {
-                return;
-            }
+		flowPriority = Tools.getIntegerProperty(properties, FLOW_PRIORITY, FLOW_PRIORITY_DEFAULT);
+		log.info("Configured. Flow Priority is configured to {}", flowPriority);
+	}
 
-            InboundPacket pkt = context.inPacket();
-            Ethernet ethPkt = pkt.parsed();
+	/**
+	 * Packet processor responsible for forwarding packets along their paths.
+	 */
+	private class ReactivePacketProcessor implements PacketProcessor {
 
-            if (ethPkt == null) {
-                return;
-            }
+		@Override
+		public void process(PacketContext context) {
+			// Stop processing if the packet has been handled, since we
+			// can't do any more to it.
 
-            MacAddress macAddress = ethPkt.getSourceMAC();
-            ReactiveForwardMetrics macMetrics = null;
-            macMetrics = createCounter(macAddress);
-            inPacket(macMetrics);
+			if (context.isHandled()) {
+				return;
+			}
 
-            // Bail if this is deemed to be a control packet.
-            if (isControlPacket(ethPkt)) {
-                droppedPacket(macMetrics);
-                return;
-            }
+			InboundPacket pkt = context.inPacket();
+			Ethernet ethPkt = pkt.parsed();
 
-            // Skip IPv6 multicast packet when IPv6 forward is disabled.
-            if (!ipv6Forwarding && isIpv6Multicast(ethPkt)) {
-                droppedPacket(macMetrics);
-                return;
-            }
+			if (ethPkt == null) {
+				return;
+			}
 
-            HostId id = HostId.hostId(ethPkt.getDestinationMAC());
+			MacAddress macAddress = ethPkt.getSourceMAC();
+			ReactiveForwardMetrics macMetrics = null;
+			macMetrics = createCounter(macAddress);
+			inPacket(macMetrics);
 
-            // Do not process LLDP MAC address in any way.
-            if (id.mac().isLldp()) {
-                droppedPacket(macMetrics);
-                return;
-            }
+			// Bail if this is deemed to be a control packet.
+			if (isControlPacket(ethPkt)) {
+				droppedPacket(macMetrics);
+				return;
+			}
 
-            // Do not process IPv4 multicast packets, let mfwd handle them
-            if (ignoreIPv4Multicast && ethPkt.getEtherType() == Ethernet.TYPE_IPV4) {
-                if (id.mac().isMulticast()) {
-                    return;
-                }
-            }
+			// Skip IPv6 multicast packet when IPv6 forward is disabled.
+			if (!ipv6Forwarding && isIpv6Multicast(ethPkt)) {
+				droppedPacket(macMetrics);
+				return;
+			}
 
-            // Do we know who this is for? If not, flood and bail.
-            Host dst = hostService.getHost(id);
-            if (dst == null) {
-                flood(context, macMetrics);
-                return;
-            }
+			HostId id = HostId.hostId(ethPkt.getDestinationMAC());
 
-            // Are we on an edge switch that our destination is on? If so,
-            // simply forward out to the destination and bail.
-            if (pkt.receivedFrom().deviceId().equals(dst.location().deviceId())) {
-                if (!context.inPacket().receivedFrom().port().equals(dst.location().port())) {
-                    installRule(context, dst.location().port(), macMetrics);
-                }
-                return;
-            }
+			// Do not process LLDP MAC address in any way.
+			if (id.mac().isLldp()) {
+				droppedPacket(macMetrics);
+				return;
+			}
 
-            // Otherwise, get a set of paths that lead from here to the
-            // destination edge switch.
-            Set<Path> paths =
-                    topologyService.getPaths(topologyService.currentTopology(),
-                                             pkt.receivedFrom().deviceId(),
-                                             dst.location().deviceId());
-            if (paths.isEmpty()) {
-                // If there are no paths, flood and bail.
-                flood(context, macMetrics);
-                return;
-            }
+			// Do not process IPv4 multicast packets, let mfwd handle them
+			if (ignoreIPv4Multicast && ethPkt.getEtherType() == Ethernet.TYPE_IPV4) {
+				if (id.mac().isMulticast()) {
+					return;
+				}
+			}
 
-            // Otherwise, pick a path that does not lead back to where we
-            // came from; if no such path, flood and bail.
-            Path path = pickForwardPathIfPossible(paths, pkt.receivedFrom().port());
-            if (path == null) {
-                log.warn("Don't know where to go from here {} for {} -> {}",
-                         pkt.receivedFrom(), ethPkt.getSourceMAC(), ethPkt.getDestinationMAC());
-                flood(context, macMetrics);
-                return;
-            }
+			// Do we know who this is for? If not, flood and bail.
+			Host dst = hostService.getHost(id);
+			if (dst == null) {
+				flood(context, macMetrics);
+				return;
+			}
 
-            // Otherwise forward and be done with it.
-            installRule(context, path.src().port(), macMetrics);
-        }
+			// Are we on an edge switch that our destination is on? If so,
+			// simply forward out to the destination and bail.
+			if (pkt.receivedFrom().deviceId().equals(dst.location().deviceId())) {
+				if (!context.inPacket().receivedFrom().port().equals(dst.location().port())) {
+					installRule(context, dst.location().port(), macMetrics);
+				}
+				return;
+			}
 
-    }
+			// Otherwise, get a set of paths that lead from here to the
+			// destination edge switch.
+			Set<Path> paths =
+					topologyService.getPaths(topologyService.currentTopology(),
+							pkt.receivedFrom().deviceId(),
+							dst.location().deviceId());
+			if (paths.isEmpty()) {
+				// If there are no paths, flood and bail.
+				flood(context, macMetrics);
+				return;
+			}
 
-    // Indicates whether this is a control packet, e.g. LLDP, BDDP
-    private boolean isControlPacket(Ethernet eth) {
-        short type = eth.getEtherType();
-        return type == Ethernet.TYPE_LLDP || type == Ethernet.TYPE_BSN;
-    }
+			// Otherwise, pick a path that does not lead back to where we
+			// came from; if no such path, flood and bail.
+			Path path = pickForwardPathIfPossible(paths, pkt.receivedFrom().port());
+			if (path == null) {
+				log.warn("Don't know where to go from here {} for {} -> {}",
+						pkt.receivedFrom(), ethPkt.getSourceMAC(), ethPkt.getDestinationMAC());
+				flood(context, macMetrics);
+				return;
+			}
 
-    // Indicated whether this is an IPv6 multicast packet.
-    private boolean isIpv6Multicast(Ethernet eth) {
-        return eth.getEtherType() == Ethernet.TYPE_IPV6 && eth.isMulticast();
-    }
+			// Otherwise forward and be done with it.
+			installRule(context, path.src().port(), macMetrics);
+		}
 
-    // Selects a path from the given set that does not lead back to the
-    // specified port if possible.
-    private Path pickForwardPathIfPossible(Set<Path> paths, PortNumber notToPort) {
-        for (Path path : paths) {
-            if (!path.src().port().equals(notToPort)) {
-                return path;
-            }
-        }
-        return null;
-    }
+	}
 
-    // Floods the specified packet if permissible.
-    private void flood(PacketContext context, ReactiveForwardMetrics macMetrics) {
-        if (topologyService.isBroadcastPoint(topologyService.currentTopology(),
-                                             context.inPacket().receivedFrom())) {
-            packetOut(context, PortNumber.FLOOD, macMetrics);
-        } else {
-            context.block();
-        }
-    }
+	// Indicates whether this is a control packet, e.g. LLDP, BDDP
+	private boolean isControlPacket(Ethernet eth) {
+		short type = eth.getEtherType();
+		return type == Ethernet.TYPE_LLDP || type == Ethernet.TYPE_BSN;
+	}
 
-    // Sends a packet out the specified port.
-    
-    //Metodo modificado
-    private void packetOut(PacketContext context, PortNumber portNumber, ReactiveForwardMetrics macMetrics) {
-        replyPacket(macMetrics);
-        if(portNumber.equals(PortNumber.FLOOD)) {
-        	
-        	/*Creamos una regla para los paquetes que vengan con FLOOD para que se
-        	 * envien por todos los puertos menos los troncales, que se instalara en el switch
-        	 * Una vez creada le decimos que ese paquete que vuelva a la tabla del switch 
-        	 */	
-        		TrafficTreatment trtr = 
-        		DefaultTrafficTreatment.builder()
-        		.setOutput(PortNumber.portNumber(2))
-        		.setOutput(PortNumber.portNumber(3))
-        		.setOutput(PortNumber.portNumber(4))
-        		.setOutput(PortNumber.portNumber(5))
-        		.setOutput(PortNumber.portNumber(6))
-        		.setOutput(PortNumber.portNumber(7))
-        		.setOutput(PortNumber.portNumber(8))
-        		.setOutput(PortNumber.portNumber(9))
-        		.setOutput(PortNumber.portNumber(10))
-        	    .group(new GroupId(137))
-        		.build();
-        		
-        		
-        		TrafficSelector selector = DefaultTrafficSelector.builder().matchEthDst(MacAddress.BROADCAST).build();
-        		
-        		
-                FlowRule rule1 = DefaultFlowRule.builder()
-                		.fromApp(appId)
-                		.forDevice(context.inPacket().receivedFrom().deviceId())
-                		.withSelector(selector)
-                		.makePermanent()
-                		.withPriority(41000)
-                		.withTreatment(trtr)
-                		.build();
-                
-                flowRuleService.applyFlowRules(rule1);
-               
-                //Una vez creada la regla le decimos al paquete que vuelva al switch a la tabla 1
-                TrafficTreatment sendBack = DefaultTrafficTreatment.builder().setOutput(PortNumber.TABLE).build();
-                
-                context.treatmentBuilder().addTreatment(sendBack);
-        }
-        //TODO Mirar esto que esta cambiado
-        else {
-            if(portNumber.toLong()==11 || portNumber.toLong()==12 || portNumber.toLong()==13 || portNumber.toLong()==14) {
-            	context.treatmentBuilder().group(new GroupId(137));
-            }
-            else
-            	context.treatmentBuilder().setOutput(portNumber);
-        }
+	// Indicated whether this is an IPv6 multicast packet.
+	private boolean isIpv6Multicast(Ethernet eth) {
+		return eth.getEtherType() == Ethernet.TYPE_IPV6 && eth.isMulticast();
+	}
+
+	// Selects a path from the given set that does not lead back to the
+	// specified port if possible.
+	private Path pickForwardPathIfPossible(Set<Path> paths, PortNumber notToPort) {
+		for (Path path : paths) {
+			if (!path.src().port().equals(notToPort)) {
+				return path;
+			}
+		}
+		return null;
+	}
+
+	// Floods the specified packet if permissible.
+	private void flood(PacketContext context, ReactiveForwardMetrics macMetrics) {
+		if (topologyService.isBroadcastPoint(topologyService.currentTopology(),
+				context.inPacket().receivedFrom())) {
+			packetOut(context, PortNumber.FLOOD, macMetrics);
+		} else {
+			context.block();
+		}
+	}
+
+	// Sends a packet out the specified port.
+
+	/**Metodo modificado*/
+	private void packetOut(PacketContext context, PortNumber portNumber, ReactiveForwardMetrics macMetrics) {
+		replyPacket(macMetrics);
+		
+		
+        context.treatmentBuilder().setOutput(portNumber);
         context.send();
-    }
-    // Install a rule forwarding the packet to the specified port.
-    private void installRule(PacketContext context, PortNumber portNumber, ReactiveForwardMetrics macMetrics) {
-        //
-        // We don't support (yet) buffer IDs in the Flow Service so
-        // packet out first.
-        //
-        Ethernet inPkt = context.inPacket().parsed();
-        TrafficSelector.Builder selectorBuilder = DefaultTrafficSelector.builder();
+//		if(portNumber.equals(PortNumber.FLOOD)) {
+//
+//			/*Creamos una regla para los paquetes que vengan con FLOOD para que se
+//			 * envien por todos los puertos menos los troncales (que se enviara por el grupo)
+//			 * y que se instalara en el switch
+//			 * Una vez creada le decimos que ese paquete que vuelva a la tabla del switch 
+//			 */	
+			
+//			TrafficTreatment trtr = 
+//					DefaultTrafficTreatment.builder()
+//					.setOutput(PortNumber.portNumber(2))
+//					.setOutput(PortNumber.portNumber(3))
+//					.setOutput(PortNumber.portNumber(4))
+//					.setOutput(PortNumber.portNumber(5))
+//					.setOutput(PortNumber.portNumber(6))
+//					.setOutput(PortNumber.portNumber(7))
+//					.setOutput(PortNumber.portNumber(8))
+//					.setOutput(PortNumber.portNumber(9))
+//					.setOutput(PortNumber.portNumber(10))
+//					.group(new GroupId(137))
+//					.transition(1)
+//					.build();
+//
+//			TrafficSelector selector = DefaultTrafficSelector.builder()
+//					.matchEthDst(MacAddress.BROADCAST)
+//					.build();
+//
+//			FlowRule rule1 = DefaultFlowRule.builder()
+//					.fromApp(appId)
+//					.forDevice(context.inPacket().receivedFrom().deviceId())
+//					.withSelector(selector)
+//					.makeTemporary(flowTimeout)
+//					.withPriority(41000)
+//					.withTreatment(trtr)
+//					.build();
+//
+//			TrafficSelector selector2 = DefaultTrafficSelector.builder()
+//					.matchEthType(EthType.ARP.value())
+//					.build();
+//			
+//			TrafficTreatment trtr2 = 
+//					DefaultTrafficTreatment.builder()
+//					.setOutput(PortNumber.CONTROLLER)
+//					.build();
+//			
+//			FlowRule rule2 = DefaultFlowRule.builder()
+//					.fromApp(appId)
+//					.forDevice(context.inPacket().receivedFrom().deviceId())
+//					.forTable(1)
+//					.withSelector(selector2)
+//					.makeTemporary(flowTimeout)
+//					.withPriority(41000)
+//					.withTreatment(trtr2)
+//					.build();
+//			
+//			flowRuleService.applyFlowRules(rule1,rule2);
+//			log.info("Creada regla para el trafico broadcast");
+//			//Una vez creada la regla le decimos al paquete que vuelva al switch a la tabla 1
+//			TrafficTreatment sendBack = DefaultTrafficTreatment.builder().transition(1)
+//				.setOutput(PortNumber.TABLE).build();
+//
+//			context.treatmentBuilder().addTreatment(sendBack);
+//		}
+//		else {
+//			if(context.inPacket().parsed().getEtherType() == Ethernet.TYPE_ARP)
+//			{
+//				return;
+//			}
+//				
+//			if(portNumber.toLong()==puerto1 || portNumber.toLong()==puerto2 || 
+//					portNumber.toLong()==puerto3 || portNumber.toLong()==puerto4) {
+//
+//				TrafficSelector selector = DefaultTrafficSelector.builder()
+//						.matchEthDst(context.inPacket().parsed().getDestinationMAC())
+//						.build();
+//
+//				TrafficTreatment trtr = DefaultTrafficTreatment.builder()
+//						.group(new GroupId(137)).build();
+//
+//				FlowRule rule1 = DefaultFlowRule.builder()
+//						.fromApp(appId)
+//						.forDevice(context.inPacket().receivedFrom().deviceId())
+//						.withSelector(selector)
+//						.makeTemporary(flowTimeout)
+//						.withPriority(41000)
+//						.withTreatment(trtr)
+//						.build();
+//
+//				flowRuleService.applyFlowRules(rule1);
+//
+//
+//				log.info("Enviado paquete por el grupo");
+//
+//				TrafficTreatment sendGroup = DefaultTrafficTreatment.builder()
+//						.setOutput(PortNumber.TABLE).build();
+//				context.treatmentBuilder().addTreatment(sendGroup);
+//			}
+//			else {
+//				log.info("Enviado paquete por el puerto correspondiente");
+//				//Duda: ¿portNumber no es FLOOD? Por que enviarlo por ahi? --> Se le llama desde otro sitio donde el portNumber es el puerto destino
+//				/*TODO Duda2: Al hacer captura sobre el puerto cada poco envia 
+//            	ARP preguntando la MAC, por que? Secuencia de 6seg 22seg 6seg 22seg....*/
+//				context.treatmentBuilder().setOutput(portNumber);
+//			}
+//		}
+//		context.send();
+	}
+	// Install a rule forwarding the packet to the specified port.
+	private void installRule(PacketContext context, PortNumber portNumber, ReactiveForwardMetrics macMetrics) {
 
-        // If PacketOutOnly or ARP packet than forward directly to output port
-        if (packetOutOnly || inPkt.getEtherType() == Ethernet.TYPE_ARP) {
-            packetOut(context, portNumber, macMetrics);
-            return;
-        }
+		// We don't support (yet) buffer IDs in the Flow Service so
+		// packet out first.
+		//
+		Ethernet inPkt = context.inPacket().parsed();
+		TrafficSelector.Builder selectorBuilder = DefaultTrafficSelector.builder();
 
-        //
-        // If matchDstMacOnly
-        //    Create flows matching dstMac only
-        // Else
-        //    Create flows with default matching and include configured fields
-        //
-        if (matchDstMacOnly) {
-            selectorBuilder.matchEthDst(inPkt.getDestinationMAC());
-        } else {
-            selectorBuilder.matchInPort(context.inPacket().receivedFrom().port())
-                    .matchEthSrc(inPkt.getSourceMAC())
-                    .matchEthDst(inPkt.getDestinationMAC());
+		// If PacketOutOnly or ARP packet than forward directly to output port
+		if (packetOutOnly || inPkt.getEtherType() == Ethernet.TYPE_ARP) {
+			packetOut(context, portNumber, macMetrics);
+			return;
+		}
 
-            // If configured Match Vlan ID
-            if (matchVlanId && inPkt.getVlanID() != Ethernet.VLAN_UNTAGGED) {
-                selectorBuilder.matchVlanId(VlanId.vlanId(inPkt.getVlanID()));
-            }
+		//
+		// If matchDstMacOnly
+		//    Create flows matching dstMac only
+		// Else
+		//    Create flows with default matching and include configured fields
+		//
+		if (matchDstMacOnly) {
+			selectorBuilder.matchEthDst(inPkt.getDestinationMAC());
+		}
+		else {
+			selectorBuilder.matchInPort(context.inPacket().receivedFrom().port())
+			.matchEthSrc(inPkt.getSourceMAC())
+			.matchEthDst(inPkt.getDestinationMAC());
 
-            //
-            // If configured and EtherType is IPv4 - Match IPv4 and
-            // TCP/UDP/ICMP fields
-            //
-            if (matchIpv4Address && inPkt.getEtherType() == Ethernet.TYPE_IPV4) {
-                IPv4 ipv4Packet = (IPv4) inPkt.getPayload();
-                byte ipv4Protocol = ipv4Packet.getProtocol();
-                Ip4Prefix matchIp4SrcPrefix =
-                        Ip4Prefix.valueOf(ipv4Packet.getSourceAddress(),
-                                          Ip4Prefix.MAX_MASK_LENGTH);
-                Ip4Prefix matchIp4DstPrefix =
-                        Ip4Prefix.valueOf(ipv4Packet.getDestinationAddress(),
-                                          Ip4Prefix.MAX_MASK_LENGTH);
-                selectorBuilder.matchEthType(Ethernet.TYPE_IPV4)
-                        .matchIPSrc(matchIp4SrcPrefix)
-                        .matchIPDst(matchIp4DstPrefix);
+			// If configured Match Vlan ID
+			if (matchVlanId && inPkt.getVlanID() != Ethernet.VLAN_UNTAGGED) {
+				selectorBuilder.matchVlanId(VlanId.vlanId(inPkt.getVlanID()));
+			}
 
-                if (matchIpv4Dscp) {
-                    byte dscp = ipv4Packet.getDscp();
-                    byte ecn = ipv4Packet.getEcn();
-                    selectorBuilder.matchIPDscp(dscp).matchIPEcn(ecn);
-                }
+			//
+			// If configured and EtherType is IPv4 - Match IPv4 and
+			// TCP/UDP/ICMP fields
+			//
+			if (matchIpv4Address && inPkt.getEtherType() == Ethernet.TYPE_IPV4) {
+				IPv4 ipv4Packet = (IPv4) inPkt.getPayload();
+				byte ipv4Protocol = ipv4Packet.getProtocol();
+				Ip4Prefix matchIp4SrcPrefix =
+						Ip4Prefix.valueOf(ipv4Packet.getSourceAddress(),
+								Ip4Prefix.MAX_MASK_LENGTH);
+				Ip4Prefix matchIp4DstPrefix =
+						Ip4Prefix.valueOf(ipv4Packet.getDestinationAddress(),
+								Ip4Prefix.MAX_MASK_LENGTH);
+				selectorBuilder.matchEthType(Ethernet.TYPE_IPV4)
+				.matchIPSrc(matchIp4SrcPrefix)
+				.matchIPDst(matchIp4DstPrefix);
 
-                if (matchTcpUdpPorts && ipv4Protocol == IPv4.PROTOCOL_TCP) {
-                    TCP tcpPacket = (TCP) ipv4Packet.getPayload();
-                    selectorBuilder.matchIPProtocol(ipv4Protocol)
-                            .matchTcpSrc(TpPort.tpPort(tcpPacket.getSourcePort()))
-                            .matchTcpDst(TpPort.tpPort(tcpPacket.getDestinationPort()));
-                }
-                if (matchTcpUdpPorts && ipv4Protocol == IPv4.PROTOCOL_UDP) {
-                    UDP udpPacket = (UDP) ipv4Packet.getPayload();
-                    selectorBuilder.matchIPProtocol(ipv4Protocol)
-                            .matchUdpSrc(TpPort.tpPort(udpPacket.getSourcePort()))
-                            .matchUdpDst(TpPort.tpPort(udpPacket.getDestinationPort()));
-                }
-                if (matchIcmpFields && ipv4Protocol == IPv4.PROTOCOL_ICMP) {
-                    ICMP icmpPacket = (ICMP) ipv4Packet.getPayload();
-                    selectorBuilder.matchIPProtocol(ipv4Protocol)
-                            .matchIcmpType(icmpPacket.getIcmpType())
-                            .matchIcmpCode(icmpPacket.getIcmpCode());
-                }
-            }
+				if (matchIpv4Dscp) {
+					byte dscp = ipv4Packet.getDscp();
+					byte ecn = ipv4Packet.getEcn();
+					selectorBuilder.matchIPDscp(dscp).matchIPEcn(ecn);
+				}
 
-            //
-            // If configured and EtherType is IPv6 - Match IPv6 and
-            // TCP/UDP/ICMP fields
-            //
-            if (matchIpv6Address && inPkt.getEtherType() == Ethernet.TYPE_IPV6) {
-                IPv6 ipv6Packet = (IPv6) inPkt.getPayload();
-                byte ipv6NextHeader = ipv6Packet.getNextHeader();
-                Ip6Prefix matchIp6SrcPrefix =
-                        Ip6Prefix.valueOf(ipv6Packet.getSourceAddress(),
-                                          Ip6Prefix.MAX_MASK_LENGTH);
-                Ip6Prefix matchIp6DstPrefix =
-                        Ip6Prefix.valueOf(ipv6Packet.getDestinationAddress(),
-                                          Ip6Prefix.MAX_MASK_LENGTH);
-                selectorBuilder.matchEthType(Ethernet.TYPE_IPV6)
-                        .matchIPv6Src(matchIp6SrcPrefix)
-                        .matchIPv6Dst(matchIp6DstPrefix);
+				if (matchTcpUdpPorts && ipv4Protocol == IPv4.PROTOCOL_TCP) {
+					TCP tcpPacket = (TCP) ipv4Packet.getPayload();
+					selectorBuilder.matchIPProtocol(ipv4Protocol)
+					.matchTcpSrc(TpPort.tpPort(tcpPacket.getSourcePort()))
+					.matchTcpDst(TpPort.tpPort(tcpPacket.getDestinationPort()));
+				}
+				if (matchTcpUdpPorts && ipv4Protocol == IPv4.PROTOCOL_UDP) {
+					UDP udpPacket = (UDP) ipv4Packet.getPayload();
+					selectorBuilder.matchIPProtocol(ipv4Protocol)
+					.matchUdpSrc(TpPort.tpPort(udpPacket.getSourcePort()))
+					.matchUdpDst(TpPort.tpPort(udpPacket.getDestinationPort()));
+				}
+				if (matchIcmpFields && ipv4Protocol == IPv4.PROTOCOL_ICMP) {
+					ICMP icmpPacket = (ICMP) ipv4Packet.getPayload();
+					selectorBuilder.matchIPProtocol(ipv4Protocol)
+					.matchIcmpType(icmpPacket.getIcmpType())
+					.matchIcmpCode(icmpPacket.getIcmpCode());
+				}
+			}
 
-                if (matchIpv6FlowLabel) {
-                    selectorBuilder.matchIPv6FlowLabel(ipv6Packet.getFlowLabel());
-                }
+			//
+			// If configured and EtherType is IPv6 - Match IPv6 and
+			// TCP/UDP/ICMP fields
+			//
+			if (matchIpv6Address && inPkt.getEtherType() == Ethernet.TYPE_IPV6) {
+				IPv6 ipv6Packet = (IPv6) inPkt.getPayload();
+				byte ipv6NextHeader = ipv6Packet.getNextHeader();
+				Ip6Prefix matchIp6SrcPrefix =
+						Ip6Prefix.valueOf(ipv6Packet.getSourceAddress(),
+								Ip6Prefix.MAX_MASK_LENGTH);
+				Ip6Prefix matchIp6DstPrefix =
+						Ip6Prefix.valueOf(ipv6Packet.getDestinationAddress(),
+								Ip6Prefix.MAX_MASK_LENGTH);
+				selectorBuilder.matchEthType(Ethernet.TYPE_IPV6)
+				.matchIPv6Src(matchIp6SrcPrefix)
+				.matchIPv6Dst(matchIp6DstPrefix);
 
-                if (matchTcpUdpPorts && ipv6NextHeader == IPv6.PROTOCOL_TCP) {
-                    TCP tcpPacket = (TCP) ipv6Packet.getPayload();
-                    selectorBuilder.matchIPProtocol(ipv6NextHeader)
-                            .matchTcpSrc(TpPort.tpPort(tcpPacket.getSourcePort()))
-                            .matchTcpDst(TpPort.tpPort(tcpPacket.getDestinationPort()));
-                }
-                if (matchTcpUdpPorts && ipv6NextHeader == IPv6.PROTOCOL_UDP) {
-                    UDP udpPacket = (UDP) ipv6Packet.getPayload();
-                    selectorBuilder.matchIPProtocol(ipv6NextHeader)
-                            .matchUdpSrc(TpPort.tpPort(udpPacket.getSourcePort()))
-                            .matchUdpDst(TpPort.tpPort(udpPacket.getDestinationPort()));
-                }
-                if (matchIcmpFields && ipv6NextHeader == IPv6.PROTOCOL_ICMP6) {
-                    ICMP6 icmp6Packet = (ICMP6) ipv6Packet.getPayload();
-                    selectorBuilder.matchIPProtocol(ipv6NextHeader)
-                            .matchIcmpv6Type(icmp6Packet.getIcmpType())
-                            .matchIcmpv6Code(icmp6Packet.getIcmpCode());
-                }
-            }
-        }
-       //Hacemos que si el paquete va por los puertos 10,11,12 o 13 del switch se envie por el grupo 
-       //y que sea este el que indique en la aplicacion balanceoSwitch cual de ellos esta activo
-       //De esta forma tenemos implementado el balanceo
-       if(portNumber.toLong()==11 || portNumber.toLong()==12 || portNumber.toLong()==13 || portNumber.toLong()==14) {
-        TrafficTreatment treatment = DefaultTrafficTreatment.builder()
-                .group(new GroupId(137))
-                .build();
-        
+				if (matchIpv6FlowLabel) {
+					selectorBuilder.matchIPv6FlowLabel(ipv6Packet.getFlowLabel());
+				}
 
-        ForwardingObjective forwardingObjective = DefaultForwardingObjective.builder()
-                .withSelector(selectorBuilder.build())
-                .withTreatment(treatment)
-                .withPriority(flowPriority)
-                .withFlag(ForwardingObjective.Flag.VERSATILE)
-                .fromApp(appId)
-                .makeTemporary(flowTimeout)
-                .add();
-        
-        flowObjectiveService.forward(context.inPacket().receivedFrom().deviceId(),
-                forwardingObjective);
-       }
-       //Si el trafico va por otros puertos hacemos que se mande por ese unicamente
-       else {
-           TrafficTreatment treatment = DefaultTrafficTreatment.builder()
-                   .setOutput(portNumber)
-                   .build();
-           
+				if (matchTcpUdpPorts && ipv6NextHeader == IPv6.PROTOCOL_TCP) {
+					TCP tcpPacket = (TCP) ipv6Packet.getPayload();
+					selectorBuilder.matchIPProtocol(ipv6NextHeader)
+					.matchTcpSrc(TpPort.tpPort(tcpPacket.getSourcePort()))
+					.matchTcpDst(TpPort.tpPort(tcpPacket.getDestinationPort()));
+				}
+				if (matchTcpUdpPorts && ipv6NextHeader == IPv6.PROTOCOL_UDP) {
+					UDP udpPacket = (UDP) ipv6Packet.getPayload();
+					selectorBuilder.matchIPProtocol(ipv6NextHeader)
+					.matchUdpSrc(TpPort.tpPort(udpPacket.getSourcePort()))
+					.matchUdpDst(TpPort.tpPort(udpPacket.getDestinationPort()));
+				}
+				if (matchIcmpFields && ipv6NextHeader == IPv6.PROTOCOL_ICMP6) {
+					ICMP6 icmp6Packet = (ICMP6) ipv6Packet.getPayload();
+					selectorBuilder.matchIPProtocol(ipv6NextHeader)
+					.matchIcmpv6Type(icmp6Packet.getIcmpType())
+					.matchIcmpv6Code(icmp6Packet.getIcmpCode());
+				}
+			}
+		}
+		/*Hacemos que si el paquete va por los puertos 10,11,12 o 13 del switch se envie por el grupo 
+       y que sea este el que indique en la aplicacion balanceoSwitch cual de ellos esta activo
+       De esta forma tenemos implementado el balanceo*/
 
-           ForwardingObjective forwardingObjective = DefaultForwardingObjective.builder()
-                   .withSelector(selectorBuilder.build())
-                   .withTreatment(treatment)
-                   .withPriority(flowPriority)
-                   .withFlag(ForwardingObjective.Flag.VERSATILE)
-                   .fromApp(appId)
-                   .makeTemporary(flowTimeout)
-                   .add();
-           
-           flowObjectiveService.forward(context.inPacket().receivedFrom().deviceId(),
-                   forwardingObjective);
-       }
-       
-        forwardPacket(macMetrics);
-        //
-        // If packetOutOfppTable
-        //  Send packet back to the OpenFlow pipeline to match installed flow
-        // Else
-        //  Send packet direction on the appropriate port
-        //
-        if (packetOutOfppTable) {
-            packetOut(context, PortNumber.TABLE, macMetrics);
-        } else {
-            packetOut(context, portNumber, macMetrics);
-        }
-    }
+		if(portNumber.toLong()==11 || portNumber.toLong()==12 || 
+				portNumber.toLong()==13 || portNumber.toLong()==14) {
+			TrafficTreatment treatment = DefaultTrafficTreatment.builder()
+					.group(new GroupId(137))
+					.build();
+
+			log.info("Regla creada para el trafico que va por los puertos troncales");
+			ForwardingObjective forwardingObjective = DefaultForwardingObjective.builder()
+					.withSelector(selectorBuilder.build())
+					.withTreatment(treatment)
+					.withPriority(40500)
+					.withFlag(ForwardingObjective.Flag.VERSATILE)
+					.fromApp(appId)
+					.makeTemporary(flowTimeout)
+					.add();
+
+			flowObjectiveService.forward(context.inPacket().receivedFrom().deviceId(),
+					forwardingObjective);
+		}
+		//Si el trafico va por otros puertos hacemos que se mande por ese unicamente
+		else {
+			TrafficTreatment treatment = DefaultTrafficTreatment.builder()
+					.setOutput(portNumber)
+					.build();
+
+			log.info("Regla creada para el trafico de los puertos normales");
+			ForwardingObjective forwardingObjective = DefaultForwardingObjective.builder()
+					.withSelector(selectorBuilder.build())
+					.withTreatment(treatment)
+					.withPriority(40500)
+					.withFlag(ForwardingObjective.Flag.VERSATILE)
+					.fromApp(appId)
+					.makeTemporary(flowTimeout)
+					.add();
+
+			flowObjectiveService.forward(context.inPacket().receivedFrom().deviceId(),
+					forwardingObjective);
+		}
+
+		forwardPacket(macMetrics);
+		//
+		// If packetOutOfppTable
+		//  Send packet back to the OpenFlow pipeline to match installed flow
+		// Else
+		//  Send packet direction on the appropriate port
+		//
+		if (packetOutOfppTable) {
+			packetOut(context, PortNumber.TABLE, macMetrics);
+		} else {
+			packetOut(context, portNumber, macMetrics);
+		}
+	}
 
 
-    private class InternalTopologyListener implements TopologyListener {
-        @Override
-        public void event(TopologyEvent event) {
-            List<Event> reasons = event.reasons();
-            if (reasons != null) {
-                reasons.forEach(re -> {
-                    if (re instanceof LinkEvent) {
-                        LinkEvent le = (LinkEvent) re;
-                        if (le.type() == LinkEvent.Type.LINK_REMOVED && blackHoleExecutor != null) {
-                            blackHoleExecutor.submit(() -> fixBlackhole(le.subject().src()));
-                        }
-                    }
-                });
-            }
-        }
-    }
+	private class InternalTopologyListener implements TopologyListener {
+		@Override
+		public void event(TopologyEvent event) {
+			List<Event> reasons = event.reasons();
+			if (reasons != null) {
+				reasons.forEach(re -> {
+					if (re instanceof LinkEvent) {
+						LinkEvent le = (LinkEvent) re;
+						if (le.type() == LinkEvent.Type.LINK_REMOVED && blackHoleExecutor != null) {
+							blackHoleExecutor.submit(() -> fixBlackhole(le.subject().src()));
+						}
+					}
+				});
+			}
+		}
+	}
 
-    private void fixBlackhole(ConnectPoint egress) {
-        Set<FlowEntry> rules = getFlowRulesFrom(egress);
-        Set<SrcDstPair> pairs = findSrcDstPairs(rules);
+	private void fixBlackhole(ConnectPoint egress) {
+		Set<FlowEntry> rules = getFlowRulesFrom(egress);
+		Set<SrcDstPair> pairs = findSrcDstPairs(rules);
 
-        Map<DeviceId, Set<Path>> srcPaths = new HashMap<>();
+		Map<DeviceId, Set<Path>> srcPaths = new HashMap<>();
 
-        for (SrcDstPair sd : pairs) {
-            // get the edge deviceID for the src host
-            Host srcHost = hostService.getHost(HostId.hostId(sd.src));
-            Host dstHost = hostService.getHost(HostId.hostId(sd.dst));
-            if (srcHost != null && dstHost != null) {
-                DeviceId srcId = srcHost.location().deviceId();
-                DeviceId dstId = dstHost.location().deviceId();
-                log.trace("SRC ID is {}, DST ID is {}", srcId, dstId);
+		for (SrcDstPair sd : pairs) {
+			// get the edge deviceID for the src host
+			Host srcHost = hostService.getHost(HostId.hostId(sd.src));
+			Host dstHost = hostService.getHost(HostId.hostId(sd.dst));
+			if (srcHost != null && dstHost != null) {
+				DeviceId srcId = srcHost.location().deviceId();
+				DeviceId dstId = dstHost.location().deviceId();
+				log.trace("SRC ID is {}, DST ID is {}", srcId, dstId);
 
-                cleanFlowRules(sd, egress.deviceId());
+				cleanFlowRules(sd, egress.deviceId());
 
-                Set<Path> shortestPaths = srcPaths.get(srcId);
-                if (shortestPaths == null) {
-                    shortestPaths = topologyService.getPaths(topologyService.currentTopology(),
-                            egress.deviceId(), srcId);
-                    srcPaths.put(srcId, shortestPaths);
-                }
-                backTrackBadNodes(shortestPaths, dstId, sd);
-            }
-        }
-    }
+				Set<Path> shortestPaths = srcPaths.get(srcId);
+				if (shortestPaths == null) {
+					shortestPaths = topologyService.getPaths(topologyService.currentTopology(),
+							egress.deviceId(), srcId);
+					srcPaths.put(srcId, shortestPaths);
+				}
+				backTrackBadNodes(shortestPaths, dstId, sd);
+			}
+		}
+	}
 
-    // Backtracks from link down event to remove flows that lead to blackhole
-    private void backTrackBadNodes(Set<Path> shortestPaths, DeviceId dstId, SrcDstPair sd) {
-        for (Path p : shortestPaths) {
-            List<Link> pathLinks = p.links();
-            for (int i = 0; i < pathLinks.size(); i = i + 1) {
-                Link curLink = pathLinks.get(i);
-                DeviceId curDevice = curLink.src().deviceId();
+	// Backtracks from link down event to remove flows that lead to blackhole
+	private void backTrackBadNodes(Set<Path> shortestPaths, DeviceId dstId, SrcDstPair sd) {
+		for (Path p : shortestPaths) {
+			List<Link> pathLinks = p.links();
+			for (int i = 0; i < pathLinks.size(); i = i + 1) {
+				Link curLink = pathLinks.get(i);
+				DeviceId curDevice = curLink.src().deviceId();
 
-                // skipping the first link because this link's src has already been pruned beforehand
-                if (i != 0) {
-                    cleanFlowRules(sd, curDevice);
-                }
+				// skipping the first link because this link's src has already been pruned beforehand
+				if (i != 0) {
+					cleanFlowRules(sd, curDevice);
+				}
 
-                Set<Path> pathsFromCurDevice =
-                        topologyService.getPaths(topologyService.currentTopology(),
-                                                 curDevice, dstId);
-                if (pickForwardPathIfPossible(pathsFromCurDevice, curLink.src().port()) != null) {
-                    break;
-                } else {
-                    if (i + 1 == pathLinks.size()) {
-                        cleanFlowRules(sd, curLink.dst().deviceId());
-                    }
-                }
-            }
-        }
-    }
+				Set<Path> pathsFromCurDevice =
+						topologyService.getPaths(topologyService.currentTopology(),
+								curDevice, dstId);
+				if (pickForwardPathIfPossible(pathsFromCurDevice, curLink.src().port()) != null) {
+					break;
+				} else {
+					if (i + 1 == pathLinks.size()) {
+						cleanFlowRules(sd, curLink.dst().deviceId());
+					}
+				}
+			}
+		}
+	}
 
-    // Removes flow rules off specified device with specific SrcDstPair
-    private void cleanFlowRules(SrcDstPair pair, DeviceId id) {
-        log.trace("Searching for flow rules to remove from: {}", id);
-        log.trace("Removing flows w/ SRC={}, DST={}", pair.src, pair.dst);
-        for (FlowEntry r : flowRuleService.getFlowEntries(id)) {
-            boolean matchesSrc = false, matchesDst = false;
-            for (Instruction i : r.treatment().allInstructions()) {
-                if (i.type() == Instruction.Type.OUTPUT) {
-                    // if the flow has matching src and dst
-                    for (Criterion cr : r.selector().criteria()) {
-                        if (cr.type() == Criterion.Type.ETH_DST) {
-                            if (((EthCriterion) cr).mac().equals(pair.dst)) {
-                                matchesDst = true;
-                            }
-                        } else if (cr.type() == Criterion.Type.ETH_SRC) {
-                            if (((EthCriterion) cr).mac().equals(pair.src)) {
-                                matchesSrc = true;
-                            }
-                        }
-                    }
-                }
-            }
-            if (matchesDst && matchesSrc) {
-                log.trace("Removed flow rule from device: {}", id);
-                flowRuleService.removeFlowRules((FlowRule) r);
-            }
-        }
+	// Removes flow rules off specified device with specific SrcDstPair
+	private void cleanFlowRules(SrcDstPair pair, DeviceId id) {
+		log.trace("Searching for flow rules to remove from: {}", id);
+		log.trace("Removing flows w/ SRC={}, DST={}", pair.src, pair.dst);
+		for (FlowEntry r : flowRuleService.getFlowEntries(id)) {
+			boolean matchesSrc = false, matchesDst = false;
+			for (Instruction i : r.treatment().allInstructions()) {
+				if (i.type() == Instruction.Type.OUTPUT) {
+					// if the flow has matching src and dst
+					for (Criterion cr : r.selector().criteria()) {
+						if (cr.type() == Criterion.Type.ETH_DST) {
+							if (((EthCriterion) cr).mac().equals(pair.dst)) {
+								matchesDst = true;
+							}
+						} else if (cr.type() == Criterion.Type.ETH_SRC) {
+							if (((EthCriterion) cr).mac().equals(pair.src)) {
+								matchesSrc = true;
+							}
+						}
+					}
+				}
+			}
+			if (matchesDst && matchesSrc) {
+				log.trace("Removed flow rule from device: {}", id);
+				flowRuleService.removeFlowRules((FlowRule) r);
+			}
+		}
 
-    }
+	}
 
-    // Returns a set of src/dst MAC pairs extracted from the specified set of flow entries
-    private Set<SrcDstPair> findSrcDstPairs(Set<FlowEntry> rules) {
-        ImmutableSet.Builder<SrcDstPair> builder = ImmutableSet.builder();
-        for (FlowEntry r : rules) {
-            MacAddress src = null, dst = null;
-            for (Criterion cr : r.selector().criteria()) {
-                if (cr.type() == Criterion.Type.ETH_DST) {
-                    dst = ((EthCriterion) cr).mac();
-                } else if (cr.type() == Criterion.Type.ETH_SRC) {
-                    src = ((EthCriterion) cr).mac();
-                }
-            }
-            builder.add(new SrcDstPair(src, dst));
-        }
-        return builder.build();
-    }
+	// Returns a set of src/dst MAC pairs extracted from the specified set of flow entries
+	private Set<SrcDstPair> findSrcDstPairs(Set<FlowEntry> rules) {
+		ImmutableSet.Builder<SrcDstPair> builder = ImmutableSet.builder();
+		for (FlowEntry r : rules) {
+			MacAddress src = null, dst = null;
+			for (Criterion cr : r.selector().criteria()) {
+				if (cr.type() == Criterion.Type.ETH_DST) {
+					dst = ((EthCriterion) cr).mac();
+				} else if (cr.type() == Criterion.Type.ETH_SRC) {
+					src = ((EthCriterion) cr).mac();
+				}
+			}
+			builder.add(new SrcDstPair(src, dst));
+		}
+		return builder.build();
+	}
 
-    private ReactiveForwardMetrics createCounter(MacAddress macAddress) {
-        ReactiveForwardMetrics macMetrics = null;
-        if (recordMetrics) {
-            macMetrics = metrics.compute(macAddress, (key, existingValue) -> {
-                if (existingValue == null) {
-                    return new ReactiveForwardMetrics(0L, 0L, 0L, 0L, macAddress);
-                } else {
-                    return existingValue;
-                }
-            });
-        }
-        return macMetrics;
-    }
+	private ReactiveForwardMetrics createCounter(MacAddress macAddress) {
+		ReactiveForwardMetrics macMetrics = null;
+		if (recordMetrics) {
+			macMetrics = metrics.compute(macAddress, (key, existingValue) -> {
+				if (existingValue == null) {
+					return new ReactiveForwardMetrics(0L, 0L, 0L, 0L, macAddress);
+				} else {
+					return existingValue;
+				}
+			});
+		}
+		return macMetrics;
+	}
 
-    private void  forwardPacket(ReactiveForwardMetrics macmetrics) {
-        if (recordMetrics) {
-            macmetrics.incrementForwardedPacket();
-            metrics.put(macmetrics.getMacAddress(), macmetrics);
-        }
-    }
+	private void  forwardPacket(ReactiveForwardMetrics macmetrics) {
+		if (recordMetrics) {
+			macmetrics.incrementForwardedPacket();
+			metrics.put(macmetrics.getMacAddress(), macmetrics);
+		}
+	}
 
-    private void inPacket(ReactiveForwardMetrics macmetrics) {
-        if (recordMetrics) {
-            macmetrics.incrementInPacket();
-            metrics.put(macmetrics.getMacAddress(), macmetrics);
-        }
-    }
+	private void inPacket(ReactiveForwardMetrics macmetrics) {
+		if (recordMetrics) {
+			macmetrics.incrementInPacket();
+			metrics.put(macmetrics.getMacAddress(), macmetrics);
+		}
+	}
 
-    private void replyPacket(ReactiveForwardMetrics macmetrics) {
-        if (recordMetrics) {
-            macmetrics.incremnetReplyPacket();
-            metrics.put(macmetrics.getMacAddress(), macmetrics);
-        }
-    }
+	private void replyPacket(ReactiveForwardMetrics macmetrics) {
+		if (recordMetrics) {
+			macmetrics.incremnetReplyPacket();
+			metrics.put(macmetrics.getMacAddress(), macmetrics);
+		}
+	}
 
-    private void droppedPacket(ReactiveForwardMetrics macmetrics) {
-        if (recordMetrics) {
-            macmetrics.incrementDroppedPacket();
-            metrics.put(macmetrics.getMacAddress(), macmetrics);
-        }
-    }
+	private void droppedPacket(ReactiveForwardMetrics macmetrics) {
+		if (recordMetrics) {
+			macmetrics.incrementDroppedPacket();
+			metrics.put(macmetrics.getMacAddress(), macmetrics);
+		}
+	}
 
-    public EventuallyConsistentMap<MacAddress, ReactiveForwardMetrics> getMacAddress() {
-        return metrics;
-    }
+	public EventuallyConsistentMap<MacAddress, ReactiveForwardMetrics> getMacAddress() {
+		return metrics;
+	}
 
-    public void printMetric(MacAddress mac) {
-        System.out.println("-----------------------------------------------------------------------------------------");
-        System.out.println(" MACADDRESS \t\t\t\t\t\t Metrics");
-        if (mac != null) {
-            System.out.println(" " + mac + " \t\t\t " + metrics.get(mac));
-        } else {
-            for (MacAddress key : metrics.keySet()) {
-                System.out.println(" " + key + " \t\t\t " + metrics.get(key));
-            }
-        }
-    }
+	public void printMetric(MacAddress mac) {
+		System.out.println("-----------------------------------------------------------------------------------------");
+		System.out.println(" MACADDRESS \t\t\t\t\t\t Metrics");
+		if (mac != null) {
+			System.out.println(" " + mac + " \t\t\t " + metrics.get(mac));
+		} else {
+			for (MacAddress key : metrics.keySet()) {
+				System.out.println(" " + key + " \t\t\t " + metrics.get(key));
+			}
+		}
+	}
 
-    private Set<FlowEntry> getFlowRulesFrom(ConnectPoint egress) {
-        ImmutableSet.Builder<FlowEntry> builder = ImmutableSet.builder();
-        flowRuleService.getFlowEntries(egress.deviceId()).forEach(r -> {
-            if (r.appId() == appId.id()) {
-                r.treatment().allInstructions().forEach(i -> {
-                    if (i.type() == Instruction.Type.OUTPUT) {
-                        if (((Instructions.OutputInstruction) i).port().equals(egress.port())) {
-                            builder.add(r);
-                        }
-                    }
-                });
-            }
-        });
+	private Set<FlowEntry> getFlowRulesFrom(ConnectPoint egress) {
+		ImmutableSet.Builder<FlowEntry> builder = ImmutableSet.builder();
+		flowRuleService.getFlowEntries(egress.deviceId()).forEach(r -> {
+			if (r.appId() == appId.id()) {
+				r.treatment().allInstructions().forEach(i -> {
+					if (i.type() == Instruction.Type.OUTPUT) {
+						if (((Instructions.OutputInstruction) i).port().equals(egress.port())) {
+							builder.add(r);
+						}
+					}
+				});
+			}
+		});
 
-        return builder.build();
-    }
+		return builder.build();
+	}
 
-    // Wrapper class for a source and destination pair of MAC addresses
-    private final class SrcDstPair {
-        final MacAddress src;
-        final MacAddress dst;
+	// Wrapper class for a source and destination pair of MAC addresses
+	private final class SrcDstPair {
+		final MacAddress src;
+		final MacAddress dst;
 
-        private SrcDstPair(MacAddress src, MacAddress dst) {
-            this.src = src;
-            this.dst = dst;
-        }
+		private SrcDstPair(MacAddress src, MacAddress dst) {
+			this.src = src;
+			this.dst = dst;
+		}
 
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) {
-                return true;
-            }
-            if (o == null || getClass() != o.getClass()) {
-                return false;
-            }
-            SrcDstPair that = (SrcDstPair) o;
-            return Objects.equals(src, that.src) &&
-                    Objects.equals(dst, that.dst);
-        }
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) {
+				return true;
+			}
+			if (o == null || getClass() != o.getClass()) {
+				return false;
+			}
+			SrcDstPair that = (SrcDstPair) o;
+			return Objects.equals(src, that.src) &&
+					Objects.equals(dst, that.dst);
+		}
 
-        @Override
-        public int hashCode() {
-            return Objects.hash(src, dst);
-        }
-    }
+		@Override
+		public int hashCode() {
+			return Objects.hash(src, dst);
+		}
+	}
 }

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.onosproject.fwd2;
+package org.onosproject.fwd;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
 import org.apache.karaf.shell.api.console.CommandLine;
 import org.apache.karaf.shell.api.console.Completer;

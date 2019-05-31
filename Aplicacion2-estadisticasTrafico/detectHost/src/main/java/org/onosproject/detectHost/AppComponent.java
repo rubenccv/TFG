@@ -106,7 +106,6 @@ public class AppComponent{
 		long period = 1000L * 10L; // Every 10 seconds we get the statistics
 		timer1.scheduleAtFixedRate(repeatedTask1, delay, period);
 		timer2.scheduleAtFixedRate(repeatedTask2, 3*delay, period);
-
 	}
 
 	@Deactivate
@@ -127,7 +126,5 @@ public class AppComponent{
             }
         }
     }
-	
-	
 }
 

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.onosproject.fwd2;
+package org.onosproject.fwd;
 
 public final class OsgiPropertyConstants {
     private OsgiPropertyConstants() {
