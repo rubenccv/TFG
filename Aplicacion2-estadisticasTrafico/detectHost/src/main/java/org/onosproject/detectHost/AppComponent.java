@@ -62,8 +62,6 @@ public class AppComponent{
 	int cont=0;
     private final HostListener hostListener = new InternalHostListener();
 
-	public Long LIMIT_MB = 1000000L; //1MB de maximo de datos
-
 	@Activate
 	protected void activate() {
 
