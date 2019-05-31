@@ -185,9 +185,7 @@ public class AppComponent{
 			if(event.type()==HostEvent.Type.HOST_ADDED) {
 				//TODO Comprobar que el dispositivo en el que esta conectado el host.
 
-
 				//TODO Configurar inicialmente ciertos puertos del switch como troncales
-
 
 				//TODO Ver si se inunda si no hay correspondencia con la MAC de destino 
 				MacAddress macHost = event.subject().mac();

@@ -109,7 +109,6 @@ public class AppComponent{
     private int TIMEOUT_SEC = 10;
 
     //TODO Hacer parametros configurables para el temporizador y el limite de datos
-    //TODO En vez de hacer crear y borrar las reglas hacerlas temporales y context.block() (porque creo que es mas eficiente y quedaria mejor)
     @Activate
     protected void activate() {
         
@@ -203,21 +202,7 @@ public class AppComponent{
         
 		log.error("Baneo aplicado a la MAC: "+src);
     }
-    
    
-   /* private class InternalFlowListener implements FlowRuleListener {
-        @Override
-        public void event(FlowRuleEvent event) {
-            FlowRule flowRule = event.subject();
-            if (event.type() == RULE_REMOVED && flowRule.appId() == appId.id()) {
-                Criterion criterion = flowRule.selector().getCriterion(ETH_SRC);
-                MacAddress src = ((EthCriterion) criterion).mac();
-                hosts.put(src,0L);
-                log.warn("Baneo eliminado a la MAC: "+src);
-            }
-        }
-    }*/
-    
     private class PingPruner extends TimerTask {
         private final FlowRule rule1;
         private final FlowRule rule2;
