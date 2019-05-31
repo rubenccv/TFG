@@ -26,6 +26,7 @@
 
 ✗ Balancear tráfico de manera que no se cree una regla (FlowRule) para un solo posible camino, sino diferentes rutas alternativas
 
-✗ Limitar el tráfico para cada Flow Rule (usar meters)
+✗ Limitar el tráfico (en Mbps) para cada Flow Rule (usar meters)
+
 https://groups.google.com/a/onosproject.org/forum/#!topic/onos-discuss/USB2ryD_RA4
 https://blog.sflow.com/2018/04/onos-traffic-analytics.html
