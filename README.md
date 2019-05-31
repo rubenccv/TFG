@@ -30,3 +30,5 @@
 
 https://groups.google.com/a/onosproject.org/forum/#!topic/onos-discuss/USB2ryD_RA4
 https://blog.sflow.com/2018/04/onos-traffic-analytics.html
+
+✗ Emplear el lenguaje P4 (https://p4.org/) para definir un protocolo experimental y poderlo meter en los campos del matching (selector Pi) para crear una regla al estilo de OpenFlow
