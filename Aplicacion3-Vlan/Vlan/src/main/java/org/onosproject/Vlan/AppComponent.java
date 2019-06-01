@@ -122,8 +122,6 @@ public class AppComponent{
 	int priority = 65000;
     private final HashMap<MacAddress,VlanId> macVlanMap = new HashMap<MacAddress,VlanId>();    
     
-    //private final HashMap<VlanId,ArrayList<PortNumber>> vlanPortMap = new HashMap<VlanId,ArrayList<PortNumber>>();    
-
     private final HashMap<VlanId,FlowRule> vlanRuleMap = new HashMap<VlanId,FlowRule>();    
     
     private final HashMap<MacAddress,FlowRule[]> macRuleMap = new HashMap<MacAddress,FlowRule[]>();    
@@ -136,12 +134,12 @@ public class AppComponent{
 				() -> log.info("Periscope down."));
 		log.info("Started");
 		hostService.addListener(hostListener);
-        //packetService.addProcessor(packetProcessor, 128);
-		
-		
+
 		//Regla para que los ARP vayan para el controlador
-		TrafficSelector selector = DefaultTrafficSelector.builder().matchEthType(EthType.EtherType.ARP.ethType().toShort()).build();		
-		TrafficTreatment trtr = DefaultTrafficTreatment.builder().setOutput(PortNumber.CONTROLLER).build();
+		TrafficSelector selector = DefaultTrafficSelector.builder()
+				.matchEthType(EthType.EtherType.ARP.ethType().toShort()).build();		
+		TrafficTreatment trtr = DefaultTrafficTreatment.builder()
+				.setOutput(PortNumber.CONTROLLER).build();
 
 		Iterable<Device> dev = deviceService.getAvailableDevices();
 
@@ -210,10 +208,10 @@ public class AppComponent{
 				//Entramos en este if en la primera iteracion unicamente
 				if(ruleBorrar==null)
 					log.error("No se ha encontrado regla para borrar");
-
 				
 				//Nota: No es necesario crear la regla de la tabla 0 dado que la tenemos creada en el else de abajo ya.
-				TrafficSelector selector = DefaultTrafficSelector.builder().matchEthDst(MacAddress.BROADCAST).matchVlanId(VlanHost).build();		
+				TrafficSelector selector = DefaultTrafficSelector.builder()
+						.matchEthDst(MacAddress.BROADCAST).matchVlanId(VlanHost).build();		
 				TrafficTreatment.Builder addVlan1 = DefaultTrafficTreatment.builder();
 
 
@@ -267,7 +265,8 @@ public class AppComponent{
 				if(VlanHost.equals(VlanId.NONE)) {
 					//Excepcion para el trafico que va dirigido al router (no tiene que quitar la VLAN)
 
-					TrafficSelector selector1 = DefaultTrafficSelector.builder().matchEthSrc(macHost).build();
+					TrafficSelector selector1 = DefaultTrafficSelector.builder()
+							.matchEthSrc(macHost).build();
 					TrafficTreatment addVlan = DefaultTrafficTreatment.builder()
 							.transition(1).build();
 
@@ -283,11 +282,11 @@ public class AppComponent{
 							.build();
 
 					//La segunda regla es identica excepto que el trafico que va al router tiene que mantener la VLAN asignada
-					TrafficSelector selector2 = DefaultTrafficSelector.builder().matchEthDst(macHost).build();
+					TrafficSelector selector2 = DefaultTrafficSelector.builder()
+							.matchEthDst(macHost).build();
 					TrafficTreatment send = DefaultTrafficTreatment.builder()
 							.setOutput(event.subject().location().port()).transition(2).build();
 
-					
 					FlowRule rule2 = DefaultFlowRule.builder()
 							.fromApp(appId)
 							.forTable(IndexTableId.of(1))
@@ -306,8 +305,10 @@ public class AppComponent{
 				}
 				
 				else {
-					TrafficSelector selector1 = DefaultTrafficSelector.builder().matchEthSrc(macHost).build();
-					TrafficTreatment addVlan = DefaultTrafficTreatment.builder().pushVlan().setVlanId(VlanHost)
+					TrafficSelector selector1 = DefaultTrafficSelector.builder()
+							.matchEthSrc(macHost).build();
+					TrafficTreatment addVlan = DefaultTrafficTreatment.builder().pushVlan()
+							.setVlanId(VlanHost)
 							.transition(1).build();
 
 					//Cuando el host manda trafico se le añade la VLAN
@@ -322,8 +323,9 @@ public class AppComponent{
 							.build();
 
 
-					//Regla que quita la VLAN cuando el trafico ha llegado al openVSwitch.
-					//Tambien manda el trafico por el puerto en el que esta el host final que cuadre con la MAC destino
+					/*Regla que quita la VLAN cuando el trafico ha llegado al openVSwitch.
+					Tambien manda el trafico por el puerto en el que esta el host final
+					 que cuadre con la MAC destino*/
 					TrafficSelector selector2 = DefaultTrafficSelector.builder()
 							.matchEthDst(macHost)
 							.matchVlanId(VlanHost)
