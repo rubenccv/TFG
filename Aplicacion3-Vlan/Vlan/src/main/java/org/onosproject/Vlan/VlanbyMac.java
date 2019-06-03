@@ -17,18 +17,13 @@ package org.onosproject.Vlan;
 
 
 import org.onlab.packet.EthType;
-import org.onlab.packet.Ethernet;
 import org.onlab.packet.MacAddress;
 import org.onlab.packet.VlanId;
-import org.onosproject.net.packet.PacketContext;
 import org.onosproject.cfg.ComponentConfigService;
-import org.onosproject.net.ConnectPoint;
 import org.onosproject.net.Host;
-import org.osgi.service.component.ComponentContext;
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Deactivate;
-import org.osgi.service.component.annotations.Modified;
 import org.osgi.service.component.annotations.Reference;
 import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.slf4j.Logger;
@@ -37,44 +32,27 @@ import org.slf4j.LoggerFactory;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.core.CoreService;
 import org.onosproject.net.Device;
-import org.onosproject.net.DeviceId;
-import org.onosproject.net.Port;
 import org.onosproject.net.PortNumber;
 import org.onosproject.net.device.DeviceService;
-import org.onosproject.net.device.PortStatistics;
 import org.onosproject.net.flow.DefaultFlowRule;
 import org.onosproject.net.flow.DefaultTrafficSelector;
 import org.onosproject.net.flow.DefaultTrafficTreatment;
 import org.onosproject.net.flow.FlowRule;
 import org.onosproject.net.flow.FlowRuleService;
 import org.onosproject.net.flow.IndexTableId;
-import org.onosproject.net.flow.TableId;
 import org.onosproject.net.flow.TrafficSelector;
 import org.onosproject.net.flow.TrafficTreatment;
-import org.onosproject.net.flowobjective.DefaultForwardingObjective;
 import org.onosproject.net.flowobjective.FlowObjectiveService;
 import org.onosproject.net.host.HostEvent;
 import org.onosproject.net.host.HostListener;
 import org.onosproject.net.host.HostProbingService;
 import org.onosproject.net.host.HostService;
-import org.onosproject.net.host.ProbeMode;
-import org.onosproject.net.packet.PacketProcessor;
-import org.onosproject.net.flowobjective.ForwardingObjective;
-import org.onosproject.net.packet.PacketContext;
-import org.onosproject.net.packet.PacketPriority;
-import org.onosproject.net.packet.PacketProcessor;
 import org.onosproject.net.packet.PacketService;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
-import java.util.Timer;
-import java.util.TimerTask;
 import java.util.Map.Entry;
 
 /**
@@ -85,12 +63,14 @@ import java.util.Map.Entry;
  * y en caso de ser correcto, el openVSwitch quita la VLAN (rule2) y se envia por el puerto correspondiente
  */
 
-@Component(immediate = true)
-public class AppComponent{
-	
-	
+@Component(
+		immediate = true,
+		service = VlanbyMac.class)
 
-	private final Logger log = LoggerFactory.getLogger(AppComponent.class);
+
+public class VlanbyMac{
+
+	private final Logger log = LoggerFactory.getLogger(VlanbyMac.class);
 
 	private ApplicationId appId;
 	
@@ -197,10 +177,14 @@ public class AppComponent{
 				log.warn("Host conectado reconocido");
 
 
-				//Creamos una regla para el trafico de broadcast. 
-				//Este trafico se tiene que enviar por todos los puertos de la VLAN en la que esta conectado sin etiquetar
-				//Y por el puerto del router etiquetado, por ello dividimos en 2 pasos. Primero cogemos la MAC de aquellos con VLAN=NONE
-				//Y decimos que envie etiquetado y a continuacion, quitamos la etiqueta y enviamos por los puertos de la VLAN unicamente
+				/*Creamos una regla para el trafico de broadcast. 
+				Este trafico se tiene que enviar por todos los puertos de la VLAN en la que 
+				esta conectado sin etiquetar y por el puerto del router etiquetado, 
+				por ello dividimos en 2 pasos. 
+				
+				Primero cogemos la MAC de aquellos con VLAN=NONE
+				Y decimos que envie etiquetado y a continuacion, quitamos la etiqueta 
+				y enviamos por los puertos de la VLAN unicamente*/
 
 
 				FlowRule ruleBorrar = vlanRuleMap.get(VlanHost);
@@ -217,7 +201,7 @@ public class AppComponent{
 
 				Set<MacAddress>macVlan0 = getKeys(macVlanMap,VlanId.NONE);
 				for(MacAddress mac: macVlan0) {
-
+					
 					Set<Host> hiterator=hostService.getHostsByMac(mac);
 
 					if(hiterator!=null && hiterator.iterator().hasNext())
@@ -434,6 +418,20 @@ public class AppComponent{
 	    return keys;
 	}
 	
+	public void addVlanMac (VlanId vlan, MacAddress mac) {
+		macVlanMap.put(mac, vlan);
+		log.error("macVlanMap es: {}",macVlanMap.toString());
+	}
+	
+
+	public void printMetric(MacAddress mac, VlanId vlan) {
+		System.out.println("-----------------------------------------------------------------------------------------");
+		System.out.println(" MacAddress----------------Vlan");
+		if (mac != null && vlan!=null) {
+			System.out.println(" " + mac.toString() + "" + vlan.toShort());
+		} 
+	}
+
 }//Cierre del appComponent
 
 

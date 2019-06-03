@@ -18,7 +18,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>org.onosproject</groupId>
-    <artifactId>Vlan</artifactId>
+    <artifactId>prueba</artifactId>
     <version>1.0-SNAPSHOT</version>
     <packaging>bundle</packaging>
 
@@ -28,12 +28,6 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <onos.version>2.1.0</onos.version>
-        <onos.app.name>org.onosproject.Vlan</onos.app.name>
-        <onos.app.title>Foo App</onos.app.title>
-        <onos.app.origin>Foo, Inc.</onos.app.origin>
-        <onos.app.category>default</onos.app.category>
-        <onos.app.url>http://onosproject.org</onos.app.url>
-        <onos.app.readme>ONOS OSGi bundle archetype.</onos.app.readme>
     </properties>
 
     <dependencies>
@@ -49,45 +43,18 @@
             <version>${onos.version}</version>
         </dependency>
 
-  <dependency>
-            <groupId>org.onosproject</groupId>
-            <artifactId>onos-cli</artifactId>
-            <version>${onos.version}</version>
-        </dependency>
-
-
-        <dependency>
-            <groupId>org.onosproject</groupId>
-            <artifactId>onlab-misc</artifactId>
-            <version>${onos.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-            <version>1.7.25</version>
-            <scope>provided</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-            <version>22.0</version>
-            <scope>provided</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-            <version>2.9.5</version>
-            <scope>provided</scope>
-        </dependency>
-
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <version>4.12</version>
             <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.onosproject</groupId>
+            <artifactId>onos-cli</artifactId>
+            <version>${onos.version}</version>
+            <scope>provided</scope>
         </dependency>
 
         <dependency>
@@ -100,31 +67,23 @@
 
         <dependency>
             <groupId>org.osgi</groupId>
-            <artifactId>org.osgi.service.component</artifactId>
-            <version>1.4.0</version>
-            <scope>provided</scope>
-        </dependency>
-
-     <dependency>
-            <groupId>org.apache.karaf.shell</groupId>
-            <artifactId>org.apache.karaf.shell.console</artifactId>
-            <version>4.2.1</version>
-            <scope>provided</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.osgi</groupId>
             <artifactId>org.osgi.core</artifactId>
             <version>5.0.0</version>
             <scope>provided</scope>
         </dependency>
-
         <dependency>
             <groupId>org.osgi</groupId>
             <artifactId>org.osgi.service.component.annotations</artifactId>
             <version>1.4.0</version>
             <scope>provided</scope>
-        </dependency>    </dependencies>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.karaf.shell</groupId>
+            <artifactId>org.apache.karaf.shell.console</artifactId>
+            <version>4.2.1</version>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
 
     <build>
         <plugins>
@@ -135,7 +94,7 @@
                 <extensions>true</extensions>
                 <configuration>
                     <instructions>
-                        <Karaf-Commands>org.onosproject.Vlan</Karaf-Commands>
+                        <Karaf-Commands>org.onosproject.prueba</Karaf-Commands>
                     </instructions>
                 </configuration>
             </plugin>
@@ -158,34 +117,6 @@
                         <supportedProjectType>war</supportedProjectType>
                     </supportedProjectTypes>
                 </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.onosproject</groupId>
-                <artifactId>onos-maven-plugin</artifactId>
-                <version>2.1</version>
-                <executions>
-                    <execution>
-                        <id>cfg</id>
-                        <phase>generate-resources</phase>
-                        <goals>
-                            <goal>cfg</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>swagger</id>
-                        <phase>generate-sources</phase>
-                        <goals>
-                            <goal>swagger</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>app</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>app</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
         </plugins>
     </build>
