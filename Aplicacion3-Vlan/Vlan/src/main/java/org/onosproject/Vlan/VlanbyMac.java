@@ -73,8 +73,8 @@ public class VlanbyMac{
 	private final Logger log = LoggerFactory.getLogger(VlanbyMac.class);
 
 	private ApplicationId appId;
-	
-	
+
+
 	@Reference(cardinality = ReferenceCardinality.MANDATORY)
 	protected ComponentConfigService cfgService;
 
@@ -95,20 +95,20 @@ public class VlanbyMac{
 
 	@Reference(cardinality = ReferenceCardinality.MANDATORY)
 	protected FlowRuleService flowRuleService;
-	
-    @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected PacketService packetService;
+
+	@Reference(cardinality = ReferenceCardinality.MANDATORY)
+	protected PacketService packetService;
 
 	int priority = 65000;
-    private final HashMap<MacAddress,VlanId> macVlanMap = new HashMap<MacAddress,VlanId>();    
-    
-    private final HashMap<VlanId,FlowRule> vlanRuleMap = new HashMap<VlanId,FlowRule>();    
-    
-    private final HashMap<MacAddress,FlowRule[]> macRuleMap = new HashMap<MacAddress,FlowRule[]>();    
+	private final HashMap<MacAddress,VlanId> macVlanMap = new HashMap<MacAddress,VlanId>();    
 
-    private final HostListener hostListener = new InternalHostListener();
-    
-    @Activate
+	private final HashMap<VlanId,FlowRule> vlanRuleMap = new HashMap<VlanId,FlowRule>();    
+
+	private final HashMap<MacAddress,FlowRule[]> macRuleMap = new HashMap<MacAddress,FlowRule[]>();    
+
+	private final HostListener hostListener = new InternalHostListener();
+
+	@Activate
 	protected void activate() {
 		appId = coreService.registerApplication("org.onosproject.Vlan",
 				() -> log.info("Periscope down."));
@@ -136,26 +136,50 @@ public class VlanbyMac{
 
 			flowRuleService.applyFlowRules(rule);
 		}
-		
+
+		//Regla para que los ARP vayan para el controlador
+		TrafficSelector selector2 = DefaultTrafficSelector.builder()
+				.matchVlanId(VlanId.ANY)
+				.matchEthType(EthType.EtherType.ARP.ethType().toShort()).build();		
+		TrafficTreatment trtr2 = DefaultTrafficTreatment.builder()
+				.popVlan()
+				.setOutput(PortNumber.CONTROLLER).build();
+
+		Iterable<Device> dev2 = deviceService.getAvailableDevices();
+
+		for(Device d:dev2) {
+			FlowRule rule = DefaultFlowRule.builder()
+					.fromApp(appId)
+					.forTable(IndexTableId.of(1))
+					.forDevice(d.id())
+					.makePermanent()
+					.withPriority(500)
+					.withSelector(selector2)
+					.withTreatment(trtr2)
+					.build();
+
+			flowRuleService.applyFlowRules(rule);
+		}
+
 		//Asignamos las VLAN al hashmap con las diferentes mac que tendremos en nuestra red
 		macVlanMap.put(MacAddress.valueOf("00:00:00:00:00:01"),VlanId.vlanId((short)1));
 		macVlanMap.put(MacAddress.valueOf("00:00:00:00:00:02"),VlanId.vlanId((short)1));
 		macVlanMap.put(MacAddress.valueOf("00:00:00:00:00:03"),VlanId.vlanId((short)2));
 		macVlanMap.put(MacAddress.valueOf("00:00:00:00:00:04"),VlanId.vlanId((short)2));
-		
+
 		//MAC del router que intercomunica las VLANs
 		macVlanMap.put(MacAddress.valueOf("00:00:00:00:00:05"),VlanId.NONE);
-		
+
 	}
 
 	@Deactivate
 	protected void deactivate() {
 		cfgService.unregisterProperties(getClass(), false);	
 		flowRuleService.removeFlowRulesById(appId);
-       	hostService.removeListener(hostListener);
+		hostService.removeListener(hostListener);
 		log.info("Stopped");
 	}   
-	
+
 	private class InternalHostListener implements HostListener {
 		@Override
 		public void event(HostEvent event) {
@@ -181,27 +205,29 @@ public class VlanbyMac{
 				Este trafico se tiene que enviar por todos los puertos de la VLAN en la que 
 				esta conectado sin etiquetar y por el puerto del router etiquetado, 
 				por ello dividimos en 2 pasos. 
-				
+
 				Primero cogemos la MAC de aquellos con VLAN=NONE
 				Y decimos que envie etiquetado y a continuacion, quitamos la etiqueta 
 				y enviamos por los puertos de la VLAN unicamente*/
 
 
 				FlowRule ruleBorrar = vlanRuleMap.get(VlanHost);
-				
+
 				//Entramos en este if en la primera iteracion unicamente
 				if(ruleBorrar==null)
 					log.error("No se ha encontrado regla para borrar");
-				
+
 				//Nota: No es necesario crear la regla de la tabla 0 dado que la tenemos creada en el else de abajo ya.
 				TrafficSelector selector = DefaultTrafficSelector.builder()
-						.matchEthDst(MacAddress.BROADCAST).matchVlanId(VlanHost).build();		
+						.matchEthDst(MacAddress.BROADCAST)
+						.matchVlanId(VlanHost)
+						.build();		
 				TrafficTreatment.Builder addVlan1 = DefaultTrafficTreatment.builder();
 
 
 				Set<MacAddress>macVlan0 = getKeys(macVlanMap,VlanId.NONE);
 				for(MacAddress mac: macVlan0) {
-					
+
 					Set<Host> hiterator=hostService.getHostsByMac(mac);
 
 					if(hiterator!=null && hiterator.iterator().hasNext())
@@ -242,19 +268,22 @@ public class VlanbyMac{
 				flowRuleService.applyFlowRules(rule);
 				vlanRuleMap.put(VlanHost,rule);
 
+				log.warn("Regla broadcast modificada");
 				//Una vez visto el trafico broadcast vemos el resto del trafico
-				
+
 				//Distinguimos los casos en los que la VLAN es la 0 (trafico al router) o no (trafico a los hosts)
-				
+
 				if(VlanHost.equals(VlanId.NONE)) {
 					//Excepcion para el trafico que va dirigido al router (no tiene que quitar la VLAN)
 
 					TrafficSelector selector1 = DefaultTrafficSelector.builder()
-							.matchEthSrc(macHost).build();
+							.matchEthSrc(macHost)
+							.build();
 					TrafficTreatment addVlan = DefaultTrafficTreatment.builder()
-							.transition(1).build();
+							.transition(1)
+							.build();
 
-					
+
 					FlowRule rule1 = DefaultFlowRule.builder()
 							.fromApp(appId)
 							.forTable(IndexTableId.of(0))
@@ -281,19 +310,22 @@ public class VlanbyMac{
 							.withTreatment(send)
 							.build();
 
-					
+
 					FlowRule []array = {rule1,rule2};
 					flowRuleService.applyFlowRules(array);
 					macRuleMap.put(macHost,array);
-					
+
 				}
-				
+
 				else {
 					TrafficSelector selector1 = DefaultTrafficSelector.builder()
-							.matchEthSrc(macHost).build();
-					TrafficTreatment addVlan = DefaultTrafficTreatment.builder().pushVlan()
+							.matchEthSrc(macHost)
+							.build();
+					TrafficTreatment addVlan = DefaultTrafficTreatment.builder()
+							.pushVlan()
 							.setVlanId(VlanHost)
-							.transition(1).build();
+							.transition(1)
+							.build();
 
 					//Cuando el host manda trafico se le añade la VLAN
 					FlowRule rule1 = DefaultFlowRule.builder()
@@ -341,7 +373,7 @@ public class VlanbyMac{
 				if(array!=null) {
 					flowRuleService.removeFlowRules(array);
 				}
-				
+
 				MacAddress macHost = event.subject().mac();
 				VlanId VlanHost = macVlanMap.get(macHost);
 
@@ -407,22 +439,22 @@ public class VlanbyMac{
 			}
 		}
 	} //Cierre internal host listener
-	
+
 	public <K, V> Set<K> getKeys(Map<K, V> map, V value) {
-	    Set<K> keys = new HashSet<>();
-	    for (Entry<K, V> entry : map.entrySet()) {
-	        if (entry.getValue().equals(value)) {
-	            keys.add(entry.getKey());
-	        }
-	    }
-	    return keys;
+		Set<K> keys = new HashSet<>();
+		for (Entry<K, V> entry : map.entrySet()) {
+			if (entry.getValue().equals(value)) {
+				keys.add(entry.getKey());
+			}
+		}
+		return keys;
 	}
-	
+
 	public void addVlanMac (VlanId vlan, MacAddress mac) {
 		macVlanMap.put(mac, vlan);
 		log.error("macVlanMap es: {}",macVlanMap.toString());
 	}
-	
+
 
 	public void printMetric(MacAddress mac, VlanId vlan) {
 		System.out.println("-----------------------------------------------------------------------------------------");
