@@ -452,16 +452,23 @@ public class VlanbyMac{
 
 	public void addVlanMac (VlanId vlan, MacAddress mac) {
 		macVlanMap.put(mac, vlan);
-		log.error("macVlanMap es: {}",macVlanMap.toString());
 	}
 
+	public void removeVlanMac (VlanId vlan, MacAddress mac) {
+		macVlanMap.remove(mac, vlan);
+	}
 
-	public void printMetric(MacAddress mac, VlanId vlan) {
-		System.out.println("-----------------------------------------------------------------------------------------");
-		System.out.println(" MacAddress----------------Vlan");
+	
+	public void printAddVlanMac(MacAddress mac, VlanId vlan) {
+		System.out.println(" MacAddress-------------Vlan");
 		if (mac != null && vlan!=null) {
-			System.out.println(" " + mac.toString() + "" + vlan.toShort());
+			System.out.println("" + mac.toString() + "           " + vlan.toShort());
 		} 
+	}
+	public void showVlanMac() {
+		System.out.println("macVlanMap es: "+macVlanMap.toString());
+		log.info("macVlanMap es: {}",macVlanMap.toString());
+
 	}
 
 }//Cierre del appComponent

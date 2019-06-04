@@ -28,30 +28,18 @@ import org.onosproject.Vlan.VlanbyMac;
  * Sample reactive forwarding application.
  */
 @Service
-@Command(scope = "onos", name = "add-Vlan-Mac",
-		description = "Add a Vlan to an existing Mac")
-public class fwdBalanceoCommand extends AbstractShellCommand {
-	
-	@Argument(index = 0, name = "mac", description = "One Mac Address",
-	required = true, multiValued = false)
-	//@Completion(MacAddressCompleter.class)
-    String mac = null;
-
-	@Argument(index = 1, name="vlan", description = "Vlan to be asigned to a MAC",
-					required = true, multiValued = false)
-	String vlan=null;
+@Command(scope = "onos", name = "show-Vlan-Mac",
+		description = "shows the Vlan matches to an existing Mac")
+public class ShowVlanCommand extends AbstractShellCommand {
 
     @Override
     protected void doExecute() {
         VlanbyMac VlanbyMacService = AbstractShellCommand.get(VlanbyMac.class);
-        MacAddress macAddress = null;
-        VlanId vlanId = null;
-    
-        if (mac != null && vlan!=null) {
-            macAddress = MacAddress.valueOf(mac);
-            vlanId = VlanId.vlanId(vlan);
-        	VlanbyMacService.addVlanMac(vlanId, macAddress);
-        }  
-        VlanbyMacService.printMetric(macAddress,vlanId);
+
+        VlanbyMacService.showVlanMac();
     }
 }
+
+
+
+

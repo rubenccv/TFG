@@ -977,8 +977,8 @@ public class ReactiveForwarding {
        y que sea este el que indique en la aplicacion balanceoSwitch cual de ellos esta activo
        De esta forma tenemos implementado el balanceo*/
 
-		if(portNumber.toLong()==11 || portNumber.toLong()==12 || 
-				portNumber.toLong()==13 || portNumber.toLong()==14) {
+		if(portNumber.toLong()==puerto1 || portNumber.toLong()==puerto2 || 
+				portNumber.toLong()==puerto3 || portNumber.toLong()==puerto4) {
 			TrafficTreatment treatment = DefaultTrafficTreatment.builder()
 					.group(new GroupId(137))
 					.build();
