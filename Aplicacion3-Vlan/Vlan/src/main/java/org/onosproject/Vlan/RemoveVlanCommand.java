@@ -50,7 +50,8 @@ public class RemoveVlanCommand extends AbstractShellCommand {
         if (mac != null && vlan!=null) {
             macAddress = MacAddress.valueOf(mac);
             vlanId = VlanId.vlanId(vlan);
-        	VlanbyMacService.removeVlanMac(vlanId, macAddress);
+            get(HostAdminService.class).removeHost(HostId.hostId(mac));
+            VlanbyMacService.removeVlanMac(vlanId, macAddress);
         }  
         VlanbyMacService.printAddVlanMac(macAddress,vlanId);
     }
