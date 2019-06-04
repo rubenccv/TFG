@@ -19,6 +19,8 @@ import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.Completion;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
 import org.onosproject.cli.AbstractShellCommand;
+import org.onosproject.net.HostId;
+import org.onosproject.net.host.HostAdminService;
 import org.apache.karaf.shell.api.action.Argument;
 import org.onlab.packet.MacAddress;
 import org.onlab.packet.VlanId;
@@ -50,6 +52,7 @@ public class AddVlanCommand extends AbstractShellCommand {
         if (mac != null && vlan!=null) {
             macAddress = MacAddress.valueOf(mac);
             vlanId = VlanId.vlanId(vlan);
+            get(HostAdminService.class).removeHost(HostId.hostId(mac));
         	VlanbyMacService.addVlanMac(vlanId, macAddress);
         }  
         VlanbyMacService.printAddVlanMac(macAddress,vlanId);
