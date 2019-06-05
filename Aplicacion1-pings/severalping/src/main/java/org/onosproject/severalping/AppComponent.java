@@ -159,7 +159,9 @@ public class AppComponent {
      * De esta forma cuando la regla se ha borrado lo notificamos
      */    
     private final TrafficSelector intercept = DefaultTrafficSelector.builder()
-            .matchEthType(Ethernet.TYPE_IPV4).matchIPProtocol(IPv4.PROTOCOL_ICMP).matchIcmpType(ICMP.TYPE_ECHO_REQUEST)
+            .matchEthType(Ethernet.TYPE_IPV4)
+            .matchIPProtocol(IPv4.PROTOCOL_ICMP)
+            .matchIcmpType(ICMP.TYPE_ECHO_REQUEST)
             .build();
 
     private final HashMap<PingRecord,Integer> pings = new HashMap<PingRecord,Integer>();
