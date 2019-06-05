@@ -20,8 +20,8 @@
 
 ✓ En la App 3 crear un comando que permita añadir y eliminar correspondencias MAC-VLAN, de manera que no existan únicamente las correspondencias estáticas programadas en el código fuente.
 
+✓ Crear una app que permita bloquear el tráfico DHCP (DHCPOFFER) procedente de puertos que no sea al que se conecta el router principal. Para ello se crea una regla en el dispositivo OpenFlow (Open vSwitch) que mande el tráfico DHCP al controlador. En el controlador se mira si el tráfico es DHCP y si es un DHCPOFFER. Si lo es, y el puerto por el que ha llegado es el que conecta con el router, se permite enviar ese paquete. En caso contrario, se bloquea el envío de dicho paquete para evitar que un host malintencionado desconfigure los hosts de la red.
 -------------------------------------------------------------------------------------------------
-✗ Crear una app que permita bloquear el tráfico DHCP (DHCPOFFER) procedente de puertos que no sea al que se conecta el router principal. Para ello se crea una regla en el dispositivo OpenFlow (Open vSwitch) que mande el tráfico DHCP al controlador. En el controlador se mira si el tráfico es DHCP y si es un DHCPOFFER. Si lo es, y el puerto por el que ha llegado es el que conecta con el router, se permite enviar ese paquete. En caso contrario, se bloquea el envío de dicho paquete para evitar que un host malintencionado desconfigure los hosts de la red.
 
 ✗ Balancear tráfico de manera que no se cree una regla (FlowRule) para un solo posible camino, sino diferentes rutas alternativas
 
@@ -29,6 +29,8 @@
 
 https://groups.google.com/a/onosproject.org/forum/#!topic/onos-discuss/USB2ryD_RA4
 https://blog.sflow.com/2018/04/onos-traffic-analytics.html
+
+✗ No tengo ni idea de como hacer esto, pero algo referido a diffserv?
 
 ✗ Emplear el lenguaje P4 (https://p4.org/) para definir un protocolo experimental y poderlo meter en los campos del matching (selector Pi) para crear una regla al estilo de OpenFlow
 
