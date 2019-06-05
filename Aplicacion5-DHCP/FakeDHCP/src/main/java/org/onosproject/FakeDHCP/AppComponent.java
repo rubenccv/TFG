@@ -16,12 +16,9 @@
 package org.onosproject.FakeDHCP;
 
 import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableSet;
 
 import org.onlab.packet.DHCP;
 import org.onlab.packet.Ethernet;
-import org.onlab.packet.ICMP;
-import org.onlab.packet.IPacket;
 import org.onlab.packet.IPv4;
 import org.onlab.packet.TpPort;
 import org.onlab.packet.UDP;
@@ -47,15 +44,14 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Dictionary;
 import java.util.Optional;
-import java.util.Properties;
 
-import static org.onlab.util.Tools.get;
 import static org.onosproject.FakeDHCP.OsgiPropertyConstants.PUERTO_ROUTER;
 import static org.onosproject.FakeDHCP.OsgiPropertyConstants.PUERTO_ROUTER_DEFAULT;
 
 
 /**
- * Skeletal ONOS application component.
+ * Aplicacion que sabiendo el puerto en el que esta el servidor DHCP impide las ofertas de otros sitios
+ * evitando ofertas de otros sitios no confiables.
  */
 @Component(immediate = true,
 property = {
@@ -84,17 +80,23 @@ public class AppComponent{
 	/*Hacemos que todo el trafico DHCP se mande al controlador. 
     El trafico DHCP se envia por el puerto UDP 67*/
 
+	
+	/*Recordar que esta regla tiene que recorrer todas las capas TCP.
+	No vale con poner directamente UDP sino que hay que pasar por Ethernet e IP primer*/
 	TrafficSelector selector = DefaultTrafficSelector.builder()
+			.matchEthType(Ethernet.TYPE_IPV4)
+			.matchIPProtocol(IPv4.PROTOCOL_UDP)
 			.matchUdpDst(TpPort.tpPort(UDP.DHCP_SERVER_PORT))
 			.matchUdpSrc(TpPort.tpPort(UDP.DHCP_CLIENT_PORT))
 			.build();
 
 
 	@Activate
-	protected void activate() {
+	protected void activate(ComponentContext context) {
 		appId = coreService.registerApplication("org.onosproject.dhcp",
 				() -> log.info("Periscope down."));
 		cfgService.registerProperties(getClass());
+
 		//Servicio que envia el trafico al controlador segun el selector creado
 		packetService.requestPackets(selector, PacketPriority.CONTROL, appId,
 				Optional.empty());
@@ -102,6 +104,7 @@ public class AppComponent{
 		//Una vez tenemos el trafico en el controlador creamos un procesador que procese todos los paquetes
 		packetService.addProcessor(packetProcessor, 128);
 
+		modified(context);
 		log.info("Started");
 	}
 
@@ -114,21 +117,15 @@ public class AppComponent{
 				log.info("Paquete DHCP OFFER recibido");
 				//Procesamos el paquete
 				if(context.inPacket().receivedFrom().port().toLong()!=PUERTO_ROUTER) {
+					log.error("Paquete bloqueado");
 					context.block();
 				}
 			}
 		}
 		private boolean isDHCP(Ethernet eth) {
-			DHCP sth = ((DHCP) eth.getPayload());
-
-			if(sth.getPacketType() == DHCP.MsgType.DHCPOFFER)
-				return true;
-
-			else
-				return false;
+			return eth.getEtherType() == Ethernet.TYPE_IPV4 && ((IPv4) eth.getPayload()).getProtocol() == IPv4.PROTOCOL_UDP  &&((DHCP)(((UDP)((IPv4) eth.getPayload()).getPayload())).getPayload()).getPacketType() == DHCP.MsgType.DHCPOFFER;
 		}
 	}
-
 	@Deactivate
 	protected void deactivate() {
 		cfgService.unregisterProperties(getClass(), false);
@@ -141,12 +138,9 @@ public class AppComponent{
     public void modified(ComponentContext context) {
         Dictionary<?, ?> properties = context.getProperties();
 
-        String s = Tools.get(properties, "MAX_PINGS");
+        String s = Tools.get(properties, "PUERTO_ROUTER");
         PUERTO_ROUTER = Strings.isNullOrEmpty(s) ? PUERTO_ROUTER_DEFAULT : Integer.parseInt(s.trim());
 
         log.info("Puerto al que se conecta el router se ha cambiado al {}",PUERTO_ROUTER);
     }
-
-
-
 }
