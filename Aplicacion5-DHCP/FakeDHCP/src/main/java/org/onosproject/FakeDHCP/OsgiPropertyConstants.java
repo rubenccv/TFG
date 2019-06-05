@@ -21,9 +21,4 @@ public final class OsgiPropertyConstants {
     }
     static final String PUERTO_ROUTER = "PUERTO_ROUTER";
     static final int PUERTO_ROUTER_DEFAULT = 11; //puerto 10 segun GNS3
-
-    
-    
-    /*static final String PACKET_OUT_ONLY = "packetOutOnly";
-    static final boolean PACKET_OUT_ONLY_DEFAULT  = false;*/
 }
