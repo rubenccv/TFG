@@ -23,16 +23,17 @@ import org.osgi.service.component.annotations.Reference;
 import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import org.onosproject.net.behaviour.DefaultQosDescription;
+import org.onosproject.net.behaviour.QosDescription;
+import org.onosproject.net.behaviour.trafficcontrol.*;;
 
 /**
- * Skeletal ONOS application component.
+ * Aplicacion que realiza un algoritmo tockenBucket en un router
  */
-@Component(immediate = true,
-           property = {
-               "someProperty=Some Default String Value",
-           })
-public class diffServ{
+@Component(immediate = true)
+
+
+public class TockenBucket{
 
     private final Logger log = LoggerFactory.getLogger(getClass());
 
@@ -43,12 +44,16 @@ public class diffServ{
     protected void activate() {
         cfgService.registerProperties(getClass());
         log.info("Started");
+    
+        Long cir = 1000L;
+        Long cbs = 1000L;
+
+        
+        TokenBucket tb = DefaultTokenBucket.builder().
+        
     }
 
-    
-    
-    
-    
+        
     @Deactivate
     protected void deactivate() {
         cfgService.unregisterProperties(getClass(), false);
