@@ -86,8 +86,8 @@ public class AppComponent{
 	TrafficSelector selector = DefaultTrafficSelector.builder()
 			.matchEthType(Ethernet.TYPE_IPV4)
 			.matchIPProtocol(IPv4.PROTOCOL_UDP)
-			.matchUdpDst(TpPort.tpPort(UDP.DHCP_SERVER_PORT))
-			.matchUdpSrc(TpPort.tpPort(UDP.DHCP_CLIENT_PORT))
+			.matchUdpDst(TpPort.tpPort(UDP.DHCP_CLIENT_PORT))
+			.matchUdpSrc(TpPort.tpPort(UDP.DHCP_SERVER_PORT))
 			.build();
 
 
@@ -115,15 +115,16 @@ public class AppComponent{
 			Ethernet eth = context.inPacket().parsed();
 			if (isDHCP(eth)) {
 				log.info("Paquete DHCP OFFER recibido");
+				
 				//Procesamos el paquete
 				if(context.inPacket().receivedFrom().port().toLong()!=PUERTO_ROUTER) {
-					log.error("Paquete bloqueado");
+					log.error("Paquete bloqueado por venir de servidor DHCP desconocido");
 					context.block();
 				}
 			}
 		}
 		private boolean isDHCP(Ethernet eth) {
-			return eth.getEtherType() == Ethernet.TYPE_IPV4 && ((IPv4) eth.getPayload()).getProtocol() == IPv4.PROTOCOL_UDP  &&((DHCP)(((UDP)((IPv4) eth.getPayload()).getPayload())).getPayload()).getPacketType() == DHCP.MsgType.DHCPOFFER;
+			return (eth.getEtherType() == Ethernet.TYPE_IPV4) && (((IPv4) eth.getPayload()).getProtocol() == IPv4.PROTOCOL_UDP)  &&(((DHCP)(((UDP)((IPv4) eth.getPayload()).getPayload())).getPayload()).getPacketType() == DHCP.MsgType.DHCPOFFER);
 		}
 	}
 	@Deactivate

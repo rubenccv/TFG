@@ -30,7 +30,17 @@
 https://groups.google.com/a/onosproject.org/forum/#!topic/onos-discuss/USB2ryD_RA4
 https://blog.sflow.com/2018/04/onos-traffic-analytics.html
 
-✗ No tengo ni idea de como hacer esto, pero algo referido a diffserv?
+✗ DiffServ:
+	Algortimo tocken bucket en un router --> Colocar un CBS y CIR, el tráfico que lo pasa se envia a una cola y el que no se descarta evitando 		congestiones. 
+	
+	Algortimo Three Color Marker (o algo asi) --> Se basa en 2 tocken bucket. Se podrian crear 3 colas en el switch y en funcion de si pasan o no 		los tocken bucket enviarlo a una u otra y que estas colas tengan una tasa de velocidad diferente.
+		El tráfico que pasa el primer bucket iría a la 1º cola
+		El tráfico que no pasa el primer buckket pero si el 2º tendria una probabilidad X de ser descartado y en caso de no serlo iria a una 			cola de baja prioridad
+		El tráfico que no pasa ningun bucket tendría una prob Y (Y>X) de ser descartado e iria a la 3º cola de prioridad minima
+
+
+   
+	
 
 ✗ Emplear el lenguaje P4 (https://p4.org/) para definir un protocolo experimental y poderlo meter en los campos del matching (selector Pi) para crear una regla al estilo de OpenFlow
 
