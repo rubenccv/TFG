@@ -16,7 +16,6 @@
 package org.onosproject.Vlan;
 
 import org.apache.karaf.shell.api.action.Command;
-import org.apache.karaf.shell.api.action.Completion;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
 import org.onosproject.cli.AbstractShellCommand;
 import org.onosproject.net.HostId;
@@ -30,7 +29,7 @@ import org.onosproject.Vlan.VlanbyMac;
  * Sample reactive forwarding application.
  */
 @Service
-@Command(scope = "onos", name = "add-Vlan-Mac",
+@Command(scope = "onos", name = "add-Mac-Vlan",
 		description = "Add a Vlan to an existing Mac")
 public class AddVlanCommand extends AbstractShellCommand {
 	

@@ -19,6 +19,8 @@ import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.Completion;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
 import org.onosproject.cli.AbstractShellCommand;
+import org.onosproject.net.HostId;
+import org.onosproject.net.host.HostAdminService;
 import org.apache.karaf.shell.api.action.Argument;
 import org.onlab.packet.MacAddress;
 import org.onlab.packet.VlanId;
@@ -28,7 +30,7 @@ import org.onosproject.Vlan.VlanbyMac;
  * Sample reactive forwarding application.
  */
 @Service
-@Command(scope = "onos", name = "remove-Vlan-Mac",
+@Command(scope = "onos", name = "remove-Mac-Vlan",
 		description = "Remove a Vlan to an existing Mac")
 public class RemoveVlanCommand extends AbstractShellCommand {
 	

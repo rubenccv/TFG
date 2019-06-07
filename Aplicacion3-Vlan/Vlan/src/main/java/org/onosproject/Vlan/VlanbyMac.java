@@ -19,7 +19,6 @@ package org.onosproject.Vlan;
 import org.onlab.packet.EthType;
 import org.onlab.packet.MacAddress;
 import org.onlab.packet.VlanId;
-import org.onosproject.cfg.ComponentConfigService;
 import org.onosproject.net.Host;
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
@@ -57,15 +56,12 @@ import java.util.Map.Entry;
 
 /**
  * Esta app permite enviar trafico asignando VLANs. 
- * Para ello el trafico que llega al openVswitch es etiquetado con una VLAN (rule1) acorde con un HashMap 
- * previamente definido. 
- * Cuando el trafico va a ser enviado a un host destino se comprueba que pertenecen a la misma VLAN, 
- * y en caso de ser correcto, el openVSwitch quita la VLAN (rule2) y se envia por el puerto correspondiente
  */
 
 @Component(
 		immediate = true,
-		service = VlanbyMac.class)
+		service = VlanbyMac.class
+		)
 
 
 public class VlanbyMac{
@@ -73,10 +69,6 @@ public class VlanbyMac{
 	private final Logger log = LoggerFactory.getLogger(VlanbyMac.class);
 
 	private ApplicationId appId;
-
-
-	@Reference(cardinality = ReferenceCardinality.MANDATORY)
-	protected ComponentConfigService cfgService;
 
 	@Reference(cardinality = ReferenceCardinality.MANDATORY)
 	protected CoreService coreService;
@@ -161,6 +153,8 @@ public class VlanbyMac{
 			flowRuleService.applyFlowRules(rule);
 		}
 
+		
+		
 		//Asignamos las VLAN al hashmap con las diferentes mac que tendremos en nuestra red
 		macVlanMap.put(MacAddress.valueOf("00:00:00:00:00:01"),VlanId.vlanId((short)1));
 		macVlanMap.put(MacAddress.valueOf("00:00:00:00:00:02"),VlanId.vlanId((short)1));
@@ -174,7 +168,6 @@ public class VlanbyMac{
 
 	@Deactivate
 	protected void deactivate() {
-		cfgService.unregisterProperties(getClass(), false);	
 		flowRuleService.removeFlowRulesById(appId);
 		hostService.removeListener(hostListener);
 		log.info("Stopped");
@@ -317,6 +310,7 @@ public class VlanbyMac{
 
 				}
 
+				//Se conecta un host
 				else {
 					TrafficSelector selector1 = DefaultTrafficSelector.builder()
 							.matchEthSrc(macHost)
