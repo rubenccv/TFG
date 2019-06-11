@@ -29,6 +29,8 @@ import org.onosproject.core.CoreService;
 import org.onosproject.net.host.HostEvent;
 import org.onosproject.net.host.HostEvent.Type;
 import org.onosproject.net.host.HostListener;
+import org.onosproject.net.host.HostProbingEvent;
+import org.onosproject.net.host.HostProbingListener;
 import org.onosproject.net.host.HostProbingService;
 import org.onosproject.net.host.HostService;
 import org.onosproject.net.host.ProbeMode;
@@ -40,6 +42,9 @@ import java.util.TimerTask;
  * Aplicacion que muestra los hosts conectados a cada openVswitch cada cierto tiempo.
  */
 
+
+//TODO PREGUNTAR PORQUE ES NECESARIO ACTIVAR TAMBIEN LA APLICACION HOSTPROBINGPROVIDER 
+//Y DONDE SE ENCUENTRA SU CODIGO
 @Component(immediate = true)
 public class AppComponent{
 
@@ -56,11 +61,17 @@ public class AppComponent{
 
 	@Reference(cardinality = ReferenceCardinality.MANDATORY)
 	protected HostProbingService hostProbingService;
+	
+	
+	@Reference(cardinality = ReferenceCardinality.MANDATORY)
+	protected HostProbingListener hostProbingListener;
 
 	protected Timer timer1;
 	protected Timer timer2;
 	int cont=0;
     private final HostListener hostListener = new InternalHostListener();
+    
+//    private final HostProbingListener hostProbing = new InternalHostProbing();
 
 	@Activate
 	protected void activate() {
@@ -124,5 +135,20 @@ public class AppComponent{
             }
         }
     }
+    
+    //TODO QUE DIFERENCIA HAY ENTRE HOST LISTENER Y HOST PROBING LISTENER?? SI HACEN LO MISMO!
+  
+    
+    /* 
+    public class InternalHostProbing implements HostProbingListener{
+
+		@Override
+		public void event(HostProbingEvent event) {
+			event.type() == Type.HOST_REMOVED;
+			
+		}
+    */	
+    	
+
 }
 

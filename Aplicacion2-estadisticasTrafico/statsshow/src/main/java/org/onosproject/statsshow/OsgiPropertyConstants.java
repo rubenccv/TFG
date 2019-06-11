@@ -20,6 +20,6 @@ public final class OsgiPropertyConstants {
     private OsgiPropertyConstants() {
     }
     static final String TASK_PERIOD = "TASK_PERIOD";
-    static final int TASK_PERIOD_DEFAULT = 50; //30 seconds
+    static final int TASK_PERIOD_DEFAULT = 50;
 
 }

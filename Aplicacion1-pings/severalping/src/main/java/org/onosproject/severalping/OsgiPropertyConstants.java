@@ -18,7 +18,7 @@ package org.onosproject.severalping;
 
 public final class OsgiPropertyConstants {
     private OsgiPropertyConstants() {
-    }
+   }
     static final String MAX_PINGS = "MAX_PINGS";
     static final int MAX_PINGS_DEFAULT = 7;
     
@@ -26,6 +26,4 @@ public final class OsgiPropertyConstants {
     static final int TIME_BAN_DEFAULT = 60;
     
     
-    /*static final String PACKET_OUT_ONLY = "packetOutOnly";
-    static final boolean PACKET_OUT_ONLY_DEFAULT  = false;*/
 }

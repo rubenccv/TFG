@@ -23,6 +23,7 @@ import org.osgi.service.component.annotations.Reference;
 import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.onlab.util.Tools;
 import org.onosproject.cfg.ComponentConfigService;
+import org.onosproject.core.ApplicationId;
 import org.onosproject.core.CoreService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,15 +50,15 @@ import java.util.List;
 
 @Component(
 	    immediate = true,
-	    service = AppComponent.class,
+	    service = showStatistics.class,
 	    property = {
 	    		TASK_PERIOD + ":Integer=" + TASK_PERIOD_DEFAULT,
 	    }
 	)
 
-public class AppComponent {
+public class showStatistics {
 
-    private final Logger log = LoggerFactory.getLogger(AppComponent.class);
+    private final Logger log = LoggerFactory.getLogger(showStatistics.class);
 
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected DeviceService deviceService;
@@ -67,25 +68,28 @@ public class AppComponent {
     
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected ComponentConfigService cfgService;
-
     
-    /** Configure the periodicty of the task */
+    /** Configure the periodicity of the task */
     private int TASK_PERIOD = TASK_PERIOD_DEFAULT;
 
     protected Timer timer; 
 
+    private ApplicationId appId;
+
     @Activate
     public void activate(ComponentContext context) {
-    	log.info("Activada aplicacion statsshow");
+    	
+    	 appId = coreService.registerApplication("org.onosproject.severalping",
+                 () -> log.info("Periscope down."));
+    	
     	cfgService.registerProperties(getClass());
-    	log.error("Paso esto");
     	modified(context);
-    	log.error("Y esto??");
+    	log.info("Activada aplicacion statsshow");
 
+    	
         TimerTask repeatedTask = new TimerTask() {
             public void run() {
                 Iterable<Device> devices = deviceService.getDevices();
-                log.error("Etro aqui");
                 for(Device d : devices)
                 {
                     log.info("#### [statsshow] Device id " + d.id().toString());
@@ -127,12 +131,12 @@ public class AppComponent {
 
     @Deactivate
     public void deactivate() {
-        timer.cancel();
         cfgService.unregisterProperties(getClass(), false);
+        timer.cancel();
         log.info("Aplicacion statsshow desactivada");
     }
     
-    
+  
     public void modified(ComponentContext context) {
         Dictionary<?, ?> properties = context.getProperties();
         
