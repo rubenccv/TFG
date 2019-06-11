@@ -76,15 +76,16 @@ public class AppComponent {
 
     @Activate
     public void activate(ComponentContext context) {
-    	log.info("Started");
-    	//TODO La linea que registra las propiedades crea un bucle infinito que activa y desactiva la app constantemente
-        cfgService.registerProperties(getClass());
-        modified(context);
+    	log.info("Activada aplicacion statsshow");
+    	cfgService.registerProperties(getClass());
+    	log.error("Paso esto");
+    	modified(context);
+    	log.error("Y esto??");
 
         TimerTask repeatedTask = new TimerTask() {
             public void run() {
                 Iterable<Device> devices = deviceService.getDevices();
-
+                log.error("Etro aqui");
                 for(Device d : devices)
                 {
                     log.info("#### [statsshow] Device id " + d.id().toString());
@@ -122,7 +123,6 @@ public class AppComponent {
         long delay = 1000L; // We start polling statistics after 1 second
         long period = 1000L * (long)TASK_PERIOD; // Every 30 seconds (by default) we get the statistics
         timer.scheduleAtFixedRate(repeatedTask, delay, period);
-        //
     }
 
     @Deactivate

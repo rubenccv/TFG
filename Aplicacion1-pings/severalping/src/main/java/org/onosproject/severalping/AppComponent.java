@@ -190,7 +190,7 @@ public class AppComponent {
         flowRuleService.removeFlowRulesById(appId);
         flowRuleService.removeListener(flowListener);
         cfgService.unregisterProperties(getClass(), false);
-        log.info("Stopped");
+        log.info("Desactivada aplicación severalpings");
     }
 
 
@@ -200,7 +200,6 @@ public class AppComponent {
         public void process(PacketContext context) {
             Ethernet eth = context.inPacket().parsed();
             if (isIcmpPing(eth)) {
-            	log.error("Paquete ICMP recibido");
                 processPing(context, eth); //Llamamos al metodo processPing
             }
         }
@@ -337,19 +336,13 @@ public class AppComponent {
     public void modified(ComponentContext context) {
         Dictionary<?, ?> properties = context.getProperties();
         
-        /*Enumeration<?> e = properties.keys();
-        while(e.hasMoreElements())
-        {
-        	log.info(e.nextElement().toString());
-        }*/
-        
         String s = Tools.get(properties, "MAX_PINGS");
         MAX_PINGS = Strings.isNullOrEmpty(s) ? MAX_PINGS_DEFAULT : Integer.parseInt(s.trim());
 
         s = Tools.get(properties, "TIME_BAN");
         TIME_BAN = Strings.isNullOrEmpty(s) ? TIME_BAN_DEFAULT : Integer.parseInt(s.trim());
         
-        log.info("Propiedad cambiada a: {} pings y {} segundos",MAX_PINGS,TIME_BAN);
+        log.info("Propiedades cambiadas a: {} pings y {} segundos",MAX_PINGS,TIME_BAN);
     }
 }
 
