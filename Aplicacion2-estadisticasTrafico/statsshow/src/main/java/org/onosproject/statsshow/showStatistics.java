@@ -19,6 +19,7 @@ import org.osgi.service.component.ComponentContext;
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Deactivate;
+import org.osgi.service.component.annotations.Modified;
 import org.osgi.service.component.annotations.Reference;
 import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.onlab.util.Tools;
@@ -48,103 +49,111 @@ import java.util.List;
  * Sample application that shows traffic statistics every few seconds.
  */
 
-@Component(
-	    immediate = true,
-	    service = showStatistics.class,
-	    property = {
-	    		TASK_PERIOD + ":Integer=" + TASK_PERIOD_DEFAULT,
-	    }
-	)
-
+@Component(immediate = true,
+property = {
+		TASK_PERIOD + ":Integer=" + TASK_PERIOD_DEFAULT,
+})
 public class showStatistics {
 
-    private final Logger log = LoggerFactory.getLogger(showStatistics.class);
+	private final Logger log = LoggerFactory.getLogger(showStatistics.class);
 
-    @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected DeviceService deviceService;
-    
-    @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected CoreService coreService;
-    
-    @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected ComponentConfigService cfgService;
-    
-    /** Configure the periodicity of the task */
-    private int TASK_PERIOD = TASK_PERIOD_DEFAULT;
+	@Reference(cardinality = ReferenceCardinality.MANDATORY)
+	protected DeviceService deviceService;
 
-    protected Timer timer; 
+	@Reference(cardinality = ReferenceCardinality.MANDATORY)
+	protected CoreService coreService;
 
-    private ApplicationId appId;
+	@Reference(cardinality = ReferenceCardinality.MANDATORY)
+	protected ComponentConfigService cfgService;
 
-    @Activate
-    public void activate(ComponentContext context) {
-    	
-    	 appId = coreService.registerApplication("org.onosproject.severalping",
-                 () -> log.info("Periscope down."));
-    	
-    	cfgService.registerProperties(getClass());
-    	modified(context);
-    	log.info("Activada aplicacion statsshow");
+	/** Configure the periodicity of the task. */
+	private int TASK_PERIOD = TASK_PERIOD_DEFAULT;
 
-    	
-        TimerTask repeatedTask = new TimerTask() {
-            public void run() {
-                Iterable<Device> devices = deviceService.getDevices();
-                for(Device d : devices)
-                {
-                    log.info("#### [statsshow] Device id " + d.id().toString());
+	protected Timer timer; 
 
-                    List<Port> ports = deviceService.getPorts(d.id());
-                    for(Port port : ports) {
-                        log.info("#### [statsshow] Port number " + port.number());
-                        PortStatistics portstat = deviceService.getStatisticsForPort(d.id(), port.number());
-                        if(portstat != null)
-                        {
-                            log.info("portstat bytes received: " + portstat.bytesReceived());
-                            log.info("portstat bytes sent: " + portstat.bytesSent());
-                        }
-                        else
-                        {
-                            log.info("Unable to read portStats.");
-                        }
-                        PortStatistics portdeltastat = deviceService.getDeltaStatisticsForPort(d.id(), port.number());
+	private ApplicationId appId;
 
-                        if(portdeltastat != null)
-                        {
-                            log.info("portdeltastat bytes received: " + portdeltastat.bytesReceived());
-                            log.info("portdeltastat bytes sent: " + portdeltastat.bytesSent());
-                        }
-                        else
-                        {
-                            log.info("Unable to read portDeltaStats.");
-                        }
-                    }
-                }
-            }
-        };
-        timer = new Timer("Timer");
-     
-        long delay = 1000L; // We start polling statistics after 1 second
-        long period = 1000L * (long)TASK_PERIOD; // Every 30 seconds (by default) we get the statistics
-        timer.scheduleAtFixedRate(repeatedTask, delay, period);
-    }
+	@Activate
+	public void activate(ComponentContext context) {
 
-    @Deactivate
-    public void deactivate() {
-        cfgService.unregisterProperties(getClass(), false);
-        timer.cancel();
-        log.info("Aplicacion statsshow desactivada");
-    }
-    
-  
-    public void modified(ComponentContext context) {
-        Dictionary<?, ?> properties = context.getProperties();
-        
-        String s = Tools.get(properties, "TASK_PERIOD");
-        log.error("Cadena: " +s);
-        TASK_PERIOD = Strings.isNullOrEmpty(s) ? TASK_PERIOD_DEFAULT : Integer.parseInt(s.trim());
- 
-        log.info("Propiedad cambiada a: {} segundos de periodicidad",TASK_PERIOD);
-    }
-    
+		appId = coreService.registerApplication("org.onosproject.statsshow",
+				() -> log.info("Periscope down."));
+
+		log.info("Activada aplicacion statsshow");
+
+
+		TimerTask repeatedTask = new MyTimerTask();
+		timer = new Timer("Timer");
+
+		long delay = 1000L; // We start polling statistics after 1 second
+		long period = 1000L * (long)TASK_PERIOD; // Every 30 seconds (by default) we get the statistics
+		timer.scheduleAtFixedRate(repeatedTask, delay, period);
+
+		cfgService.registerProperties(getClass());
+		//modified(context);
+	}
+
+	@Deactivate
+	public void deactivate() {
+		cfgService.unregisterProperties(getClass(), false);
+		timer.cancel();
+		log.info("Aplicacion statsshow desactivada");
+	}
+
+	@Modified
+	public void modified(ComponentContext context) {
+		Dictionary<?, ?> properties = context.getProperties();
+
+		String s = Tools.get(properties, "TASK_PERIOD");
+		log.error("Cadena: " +s);
+		TASK_PERIOD = Strings.isNullOrEmpty(s) ? TASK_PERIOD_DEFAULT : Integer.parseInt(s.trim());
+
+		log.info("Propiedad cambiada a: {} segundos de periodicidad",TASK_PERIOD);
+
+		timer.cancel();
+
+		TimerTask repeatedTask = new MyTimerTask();
+		timer = new Timer("Timer");
+
+		long delay = 1000L; // We start polling statistics after 1 second
+		long period = 1000L * (long)TASK_PERIOD; // Every 30 seconds (by default) we get the statistics
+		timer.scheduleAtFixedRate(repeatedTask, delay, period);
+	}
+	
+	private class MyTimerTask extends TimerTask{
+		public void run() {
+			Iterable<Device> devices = deviceService.getDevices();
+			for(Device d : devices)
+			{
+				log.info("#### [statsshow] Device id " + d.id().toString());
+
+				List<Port> ports = deviceService.getPorts(d.id());
+				for(Port port : ports) {
+					log.info("#### [statsshow] Port number " + port.number());
+					PortStatistics portstat = deviceService.getStatisticsForPort(d.id(), port.number());
+					if(portstat != null)
+					{
+						log.info("portstat bytes received: " + portstat.bytesReceived());
+						log.info("portstat bytes sent: " + portstat.bytesSent());
+					}
+					else
+					{
+						log.info("Unable to read portStats.");
+					}
+					PortStatistics portdeltastat = deviceService.getDeltaStatisticsForPort(d.id(), port.number());
+
+					if(portdeltastat != null)
+					{
+						log.info("portdeltastat bytes received: " + portdeltastat.bytesReceived());
+						log.info("portdeltastat bytes sent: " + portdeltastat.bytesSent());
+					}
+					else
+					{
+						log.info("Unable to read portDeltaStats.");
+					}
+				}
+			}
+		}
+	}
+
 }
