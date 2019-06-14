@@ -42,9 +42,6 @@ import java.util.TimerTask;
  * Aplicacion que muestra los hosts conectados a cada openVswitch cada cierto tiempo.
  */
 
-
-//TODO PREGUNTAR PORQUE ES NECESARIO ACTIVAR TAMBIEN LA APLICACION HOSTPROBINGPROVIDER 
-//Y DONDE SE ENCUENTRA SU CODIGO
 @Component(immediate = true)
 public class AppComponent{
 
@@ -54,7 +51,6 @@ public class AppComponent{
 	@Reference(cardinality = ReferenceCardinality.MANDATORY)
 	protected CoreService coreService;
 
-	
 	@Reference(cardinality = ReferenceCardinality.MANDATORY)
 	protected HostService hostService;
 
@@ -96,9 +92,8 @@ public class AppComponent{
 				Iterable<Host> hosts =  hostService.getHosts();
 				for(Host h:hosts) {
 					ConnectPoint connectPoint = new ConnectPoint(h.location().elementId(),h.location().port());
-					ProbeMode probeMode = ProbeMode.VERIFY;
 					//Esta parte en un principio no funcionaba, hubo que modificar la aplicacion hostProbing
-					hostProbingService.probeHost(h, connectPoint,probeMode);
+					hostProbingService.probeHost(h, connectPoint,ProbeMode.VERIFY);
 				}
 			}
 		};
