@@ -24,16 +24,16 @@ import org.osgi.service.component.annotations.Reference;
 import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.onosproject.core.ApplicationId;
 import org.onosproject.core.CoreService;
 import org.onosproject.net.host.HostEvent;
 import org.onosproject.net.host.HostEvent.Type;
 import org.onosproject.net.host.HostListener;
-import org.onosproject.net.host.HostProbingEvent;
-import org.onosproject.net.host.HostProbingListener;
 import org.onosproject.net.host.HostProbingService;
 import org.onosproject.net.host.HostService;
 import org.onosproject.net.host.ProbeMode;
+
+
+
 
 import java.util.Timer;
 import java.util.TimerTask;
@@ -50,7 +50,6 @@ public class AppComponent{
 
 	private final Logger log = LoggerFactory.getLogger(AppComponent.class);
 
-	private ApplicationId appId;
 
 	@Reference(cardinality = ReferenceCardinality.MANDATORY)
 	protected CoreService coreService;
@@ -62,9 +61,6 @@ public class AppComponent{
 	@Reference(cardinality = ReferenceCardinality.MANDATORY)
 	protected HostProbingService hostProbingService;
 	
-	
-	@Reference(cardinality = ReferenceCardinality.MANDATORY)
-	protected HostProbingListener hostProbingListener;
 
 	protected Timer timer1;
 	protected Timer timer2;
@@ -76,8 +72,6 @@ public class AppComponent{
 	@Activate
 	protected void activate() {
 
-		appId = coreService.registerApplication("org.onosproject.detectHost",
-				() -> log.info("Periscope down."));
         hostService.addListener(hostListener);
 
 		log.info("Started");
