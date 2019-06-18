@@ -42,68 +42,72 @@ import org.slf4j.LoggerFactory;
 
 public class TockenBucket{
 
-    @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected DeviceService deviceService;
-	
-	
-    private final Logger log = LoggerFactory.getLogger(getClass());
+	@Reference(cardinality = ReferenceCardinality.MANDATORY)
+	protected DeviceService deviceService;
 
 
-    @Activate
-    protected void activate() {
-        log.info("Activada aplicacion diffserv");
-        
-        //Vemos las colas que tiene el router   
+	private final Logger log = LoggerFactory.getLogger(getClass());
 
-        for(Device d: deviceService.getAvailableDevices()) {
-        	log.warn("Entro aqui");
-        	if(d.is(null)){
-        		log.info("No hay dispositivos conectados a la red");
-        	}
-        	else {
-        		if(d.is(QueueConfigBehaviour.class)){ 
-        			QueueConfigBehaviour queueConfig = d.as(QueueConfigBehaviour.class); 
-        			log.error(""+queueConfig.data().deviceId().toString());
-        			log.error(""+queueConfig.data().driver().name());
-        			log.warn("Dispositivo: "+d.id());
-        			
-        			//Creamos una cola
-        			Long maxRate = 100L;
-        			Long minRate = 50L;
-        			String name = "cola1";
 
-        			QueueDescription queueDesc = DefaultQueueDescription.builder()
-        					.queueId(QueueId.queueId(name))
-        					.maxRate(Bandwidth.bps(maxRate))
-        					.minRate(Bandwidth.bps(minRate))
-        					.burst(20L)
-        					.build();
-        			
-        			
-        			queueConfig.addQueue(queueDesc);
+	@Activate
+	protected void activate() {
+		log.info("Activada aplicacion diffserv");
 
-        	/*		
-        			Iterator<QueueDescription> it = queueConfig.getQueues().iterator();
-        			log.warn("Y aqui tambien");
-        			while(it.hasNext()) {
-        				log.error("Colas: "+it.toString());
-        			}
-        		*/	
-        		} 
-        		else { 
-        			log.warn("Device {} does not support QueueConfigBehavior", d.id()); 
-        		} 
+		//Vemos las colas que tiene el router   
 
-        	} 
-        }
+		for(Device d: deviceService.getAvailableDevices()) {
+			log.error("Dispositivo {}",d.id());
+			if(d.is(null)){
+				log.info("No hay dispositivos conectados a la red");
+			}
+			else {
+				if(d.is(QueueConfigBehaviour.class)){ 
+					if(d.id().toString().startsWith("ovsdb:")) {
+						QueueConfigBehaviour queueConfig = d.as(QueueConfigBehaviour.class); 
+						log.error(""+queueConfig.data().deviceId().toString());
+						log.error(""+queueConfig.data().driver().name());
+						log.warn("Dispositivo: "+d.id());
 
-    }
-        
-    @Deactivate
-    protected void deactivate() {
-        log.info("Desactivada aplicacion diffserv");
-        
-    }
+						//Creamos una cola
+						Long maxRate = 100L;
+						Long minRate = 50L;
+						String name = "cola1";
+
+						QueueDescription queueDesc = DefaultQueueDescription.builder()
+								.queueId(QueueId.queueId(name))
+								.maxRate(Bandwidth.bps(maxRate))
+								.minRate(Bandwidth.bps(minRate))
+								.burst(20L)
+								.build();
+
+
+						queueConfig.addQueue(queueDesc);
+
+						log.info("Cola creada");
+
+
+						Iterator<QueueDescription> it = queueConfig.getQueues().iterator();
+						log.warn("Y aqui tambien");
+						while(it.hasNext()) {
+							log.error("Colas: "+it.next().toString());
+						}
+					}
+					else
+						log.warn("El id dispositivo no empieza por ovsdb:");
+				} 
+				else { 
+					log.warn("Device {} does not support QueueConfigBehavior", d.id()); 
+				} 
+			} 
+		}
+
+	}
+
+	@Deactivate
+	protected void deactivate() {
+		log.info("Desactivada aplicacion diffserv");
+
+	}
 
 }
 
