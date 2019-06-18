@@ -16,7 +16,9 @@
 package org.onosproject.detectHost;
 
 import org.onosproject.net.ConnectPoint;
+import org.onosproject.net.Device;
 import org.onosproject.net.Host;
+import org.onosproject.net.device.DeviceService;
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Deactivate;
@@ -53,6 +55,9 @@ public class AppComponent{
 
 	@Reference(cardinality = ReferenceCardinality.MANDATORY)
 	protected HostService hostService;
+	
+	@Reference(cardinality = ReferenceCardinality.MANDATORY)
+	protected DeviceService deviceService;
 
 	@Reference(cardinality = ReferenceCardinality.MANDATORY)
 	protected HostProbingService hostProbingService;
@@ -60,7 +65,8 @@ public class AppComponent{
 
 	protected Timer timer1;
 	protected Timer timer2;
-	int cont=0;
+	int cont;
+	int numeroDispositivos;
     private final HostListener hostListener = new InternalHostListener();
     
 //    private final HostProbingListener hostProbing = new InternalHostProbing();
@@ -76,13 +82,25 @@ public class AppComponent{
 		TimerTask repeatedTask1 = new TimerTask() {
 			public void run() {			
 				//Vemos si  los dispositivos conectados a nuestro ONOS estan activos
-				log.error("Number of host connected is: " +hostService.getHostCount());
-        		
+				numeroDispositivos=0;
 				Iterable<Host> setH = hostService.getHosts();
+				Iterable<Device> setD = deviceService.getDevices();
+				for(Device d: setD) {
+					if(d.id().toString().startsWith("of:"))
+						numeroDispositivos++;
+				}
+				
+				
+				log.info("Number of connected devices is: {} and hosts {} ",numeroDispositivos,hostService.getHostCount());
+        		
 				cont=0;
 				for (Host h:setH) {
 					cont++;
-					log.info("Host "+cont+" whose MAC is: "+h.mac()+" is on port: "+h.location().port());
+					if(numeroDispositivos==1)
+						log.info("	Host "+cont+" whose MAC is: "+h.mac()+" is on port: "+h.location().port());
+					else
+						log.info("	Host "+cont+" whose MAC is: "+h.mac()+" is on port: "+h.location().port()+ "of device: "+h.location().deviceId());
+					
 				}			
 			}      		
 		};
@@ -118,9 +136,22 @@ public class AppComponent{
     private class InternalHostListener implements HostListener {
         public void event(HostEvent event) {
             Host host = event.subject();
+            
             if (event.type() == Type.HOST_REMOVED) {
-            	log.info("Host with MAC {} has been removed from port {} and device {}"
-            			,host.mac(),host.location().port(),host.location().deviceId());
+            	
+				numeroDispositivos=0;
+				Iterable<Device> setD = deviceService.getDevices();
+				for(Device d: setD) {
+					if(d.id().toString().startsWith("of:"))
+						numeroDispositivos++;
+				}
+				if(numeroDispositivos==1)
+					log.info("Host with MAC {} has been removed from port {}"
+							,host.mac(),host.location().port(),host.location());
+            		
+				else
+					log.info("Host with MAC {} has been removed from port {} and device {}"
+							,host.mac(),host.location().port(),host.location().deviceId());
             }
         }
     }
