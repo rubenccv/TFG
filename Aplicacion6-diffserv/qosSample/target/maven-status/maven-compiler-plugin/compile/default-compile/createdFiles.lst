@@ -1,0 +1,5 @@
+org/onosproject/qosSample/QoSConfigManager.class
+org/onosproject/qosSample/QoSQueryCommand.class
+org/onosproject/qosSample/QoSDelCommand.class
+org/onosproject/qosSample/QoSAddCommand.class
+org/onosproject/qosSample/LoadingOvsDriver.class
