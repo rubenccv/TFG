@@ -114,8 +114,8 @@ public class AppComponent{
         
         appId = coreService.registerApplication("org.onosproject.detectHostBan",
                 () -> log.info("Periscope down."));
-       // flowRuleService.addListener(flowListener);
-        log.info("Started");
+        
+        log.info("Activada la aplicacion detectHostBan");
         
         TimerTask repeatedTask= new TimerTask(){
         	public void run() {
@@ -183,7 +183,7 @@ public class AppComponent{
         		.withTreatment(drop)
         		.build();
 
-        
+        //Creamos la regla que limita el trafico para la MAC destino
         selector = DefaultTrafficSelector.builder().matchEthDst(src).build();
 
         FlowRule rule2 = DefaultFlowRule.builder()

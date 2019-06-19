@@ -1,5 +1,3 @@
-
-
 ovs-vsctl add-br br0 -- set bridge br0 datapath_type=netdev
 ovs-vsctl add-port br0 eth1
 ovs-vsctl add-port br0 eth2
@@ -11,5 +9,12 @@ ovs-vsctl add-port br0 eth7
 ovs-vsctl add-port br0 eth8
 ovs-vsctl add-port br0 eth9
 ovs-vsctl set-manager ptcp:6640
-ovs-vsctl set-controller br0 tcp:192.168.122.2:6633
+ovs-vsctl set-controller br0 tcp:192.168.122.137:6633
+
+
+
+#Cambiamos los drivers del ovsdb:IP
+
+qos-loading-driver ovsdb:192.168.122.2
+
 

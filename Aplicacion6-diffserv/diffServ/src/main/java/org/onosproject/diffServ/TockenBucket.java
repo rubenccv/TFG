@@ -16,15 +16,26 @@
 package org.onosproject.diffServ;
 
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 
 import org.onlab.util.Bandwidth;
 import org.onosproject.net.Device;
+import org.onosproject.net.PortNumber;
+import org.onosproject.net.behaviour.DefaultQosDescription;
 import org.onosproject.net.behaviour.DefaultQueueDescription;
+import org.onosproject.net.behaviour.PortConfigBehaviour;
+import org.onosproject.net.behaviour.QosConfigBehaviour;
+import org.onosproject.net.behaviour.QosDescription;
+import org.onosproject.net.behaviour.QosId;
+import org.onosproject.net.behaviour.QosDescription.Type;
 import org.onosproject.net.behaviour.QueueConfigBehaviour;
 import org.onosproject.net.behaviour.QueueDescription;
 import org.onosproject.net.behaviour.QueueId;
+import org.onosproject.net.device.DefaultPortDescription;
 import org.onosproject.net.device.DeviceService;
+import org.onosproject.net.device.PortDescription;
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Deactivate;
@@ -39,15 +50,12 @@ import org.slf4j.LoggerFactory;
  */
 @Component(immediate = true)
 
-
 public class TockenBucket{
 
 	@Reference(cardinality = ReferenceCardinality.MANDATORY)
 	protected DeviceService deviceService;
 
-
 	private final Logger log = LoggerFactory.getLogger(getClass());
-
 
 	@Activate
 	protected void activate() {
@@ -64,11 +72,10 @@ public class TockenBucket{
 				if(d.is(QueueConfigBehaviour.class)){ 
 					if(d.id().toString().startsWith("ovsdb:")) {
 						QueueConfigBehaviour queueConfig = d.as(QueueConfigBehaviour.class); 
-						log.error(""+queueConfig.data().deviceId().toString());
-						log.error(""+queueConfig.data().driver().name());
-						log.warn("Dispositivo: "+d.id());
-
-						//Creamos una cola
+				        QosConfigBehaviour qosConfig = d.as(QosConfigBehaviour.class);
+				        PortConfigBehaviour portConfig = d.as(PortConfigBehaviour.class);
+						
+						
 						Long maxRate = 100L;
 						Long minRate = 50L;
 						String name = "cola1";
@@ -85,9 +92,42 @@ public class TockenBucket{
 
 						log.info("Cola creada");
 
+					    
+				        PortDescription portDesc = DefaultPortDescription.builder()
+				        		.isEnabled(true)
+				        		.withPortNumber(PortNumber.portNumber(2))
+				        				.build();
 
+				        
+				        Map<Long, QueueDescription> queues = new HashMap<>();
+				        queues.put(0L, queueDesc);
+				        
+				        
+				        QosDescription qosDesc = DefaultQosDescription.builder()
+				                .qosId(QosId.qosId("qos1"))
+				                .type(QosDescription.Type.HTB)
+				                .maxRate(Bandwidth.bps(Long.valueOf("100000")))
+				                .cbs(5000L)
+				                .cir(400L) //paquetes IP/s
+				                .queues(queues)
+				                .build();
+				        
+				        
+				        
+			            queueConfig.addQueue(queueDesc);
+			            qosConfig.addQoS(qosDesc);
+			            portConfig.applyQoS(portDesc, qosDesc);
+				        
+				        
+				        
+				        
+				        
+				        
+				        
+				        
+				        
+						//Mostramos las colas (ver si funciona el codigo)
 						Iterator<QueueDescription> it = queueConfig.getQueues().iterator();
-						log.warn("Y aqui tambien");
 						while(it.hasNext()) {
 							log.error("Colas: "+it.next().toString());
 						}
@@ -106,9 +146,7 @@ public class TockenBucket{
 	@Deactivate
 	protected void deactivate() {
 		log.info("Desactivada aplicacion diffserv");
-
 	}
-
 }
 
 

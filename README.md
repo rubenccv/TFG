@@ -37,7 +37,7 @@ https://blog.sflow.com/2018/04/onos-traffic-analytics.html
 	Algortimo Three Color Marker (o algo asi) --> Se basa en 2 tocken bucket. Se podrian crear 3 colas en el switch y en funcion de si pasan o no 		los tocken bucket enviarlo a una u otra y que estas colas tengan una tasa de velocidad diferente.
 
 		El tráfico que pasa el primer bucket iría a la 1º cola de alta velocidad
-		El tráfico que no pasa el primer buckket pero si el 2º tendria una probabilidad X de ser descartado y en caso de no serlo iria a una 			cola de baja prioridad
+		El tráfico que no pasa el primer bucket pero si el 2º tendria una probabilidad X de ser descartado y en caso de no serlo iria a una 			cola de baja prioridad
 		El tráfico que no pasa ningun bucket tendría una prob Y (Y>X) de ser descartado e iria a la 3º cola de prioridad minima
 
 	Colas en funcion del tráfico entrante. Si es ARP menor velocidad que si es VoIP por ejemplo. 
