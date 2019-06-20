@@ -20,5 +20,5 @@ public final class OsgiPropertyConstants {
     private OsgiPropertyConstants() {
     }
     static final String PUERTO_ROUTER = "PUERTO_ROUTER";
-    static final int PUERTO_ROUTER_DEFAULT = 11; //puerto 10 segun GNS3
+    static final int PUERTO_ROUTER_DEFAULT = 9; //puerto eth9 segun GNS3
 }

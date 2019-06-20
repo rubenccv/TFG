@@ -87,12 +87,10 @@ public class TockenBucket{
 								.burst(20L)
 								.build();
 
-
 						queueConfig.addQueue(queueDesc);
 
 						log.info("Cola creada");
-
-					    
+			    
 				        PortDescription portDesc = DefaultPortDescription.builder()
 				        		.isEnabled(true)
 				        		.withPortNumber(PortNumber.portNumber(2))
@@ -119,13 +117,7 @@ public class TockenBucket{
 			            portConfig.applyQoS(portDesc, qosDesc);
 				        
 				        
-				        
-				        
-				        
-				        
-				        
-				        
-				        
+				      
 						//Mostramos las colas (ver si funciona el codigo)
 						Iterator<QueueDescription> it = queueConfig.getQueues().iterator();
 						while(it.hasNext()) {

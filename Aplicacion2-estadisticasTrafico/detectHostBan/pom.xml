@@ -29,8 +29,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <onos.version>2.1.0-rc1</onos.version>
         <onos.app.name>org.onosproject.detectHostBan</onos.app.name>
-        <onos.app.title>Foo App</onos.app.title>
-        <onos.app.origin>Foo, Inc.</onos.app.origin>
+        <onos.app.title>detectHostBan</onos.app.title>
+        <onos.app.origin>UVA</onos.app.origin>
         <onos.app.category>default</onos.app.category>
         <onos.app.url>http://onosproject.org</onos.app.url>
         <onos.app.readme>ONOS OSGi bundle archetype.</onos.app.readme>
@@ -48,6 +48,12 @@
             <artifactId>onlab-osgi</artifactId>
             <version>${onos.version}</version>
         </dependency>
+
+	<dependency>
+    		<groupId>org.apache.felix</groupId>
+    		<artifactId>org.apache.felix.scr.annotations</artifactId>
+    		<version>1.12.0</version>
+	</dependency>
 
         <dependency>
             <groupId>org.onosproject</groupId>
@@ -93,17 +99,11 @@
 
         <dependency>
             <groupId>org.osgi</groupId>
-            <artifactId>org.osgi.service.component</artifactId>
-            <version>1.4.0</version>
-            <scope>provided</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.osgi</groupId>
             <artifactId>org.osgi.service.component.annotations</artifactId>
             <version>1.4.0</version>
             <scope>provided</scope>
-        </dependency>    </dependencies>
+        </dependency>
+    </dependencies>
 
     <build>
         <plugins>
