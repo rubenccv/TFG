@@ -203,6 +203,7 @@ public class DetectHostBan{
 	@Deactivate
 	protected void deactivate() {
 		cfgService.unregisterProperties(getClass(), false);
+		flowRuleService.removeFlowRulesById(appId);
 		timer.cancel();
 		log.info("Stopped");
 	}

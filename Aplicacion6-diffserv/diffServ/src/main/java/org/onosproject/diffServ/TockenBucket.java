@@ -21,6 +21,8 @@ import java.util.Iterator;
 import java.util.Map;
 
 import org.onlab.util.Bandwidth;
+import org.onosproject.core.ApplicationId;
+import org.onosproject.core.CoreService;
 import org.onosproject.net.Device;
 import org.onosproject.net.PortNumber;
 import org.onosproject.net.behaviour.DefaultQosDescription;
@@ -36,6 +38,13 @@ import org.onosproject.net.behaviour.QueueId;
 import org.onosproject.net.device.DefaultPortDescription;
 import org.onosproject.net.device.DeviceService;
 import org.onosproject.net.device.PortDescription;
+import org.onosproject.net.flow.DefaultFlowRule;
+import org.onosproject.net.flow.DefaultTrafficSelector;
+import org.onosproject.net.flow.DefaultTrafficTreatment;
+import org.onosproject.net.flow.FlowRule;
+import org.onosproject.net.flow.FlowRuleService;
+import org.onosproject.net.flow.TrafficSelector;
+import org.onosproject.net.flow.TrafficTreatment;
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Deactivate;
@@ -57,8 +66,19 @@ public class TockenBucket{
 
 	private final Logger log = LoggerFactory.getLogger(getClass());
 
+	private ApplicationId appId;
+
+	@Reference(cardinality = ReferenceCardinality.MANDATORY)
+	protected FlowRuleService flowRuleService;
+
+	@Reference(cardinality = ReferenceCardinality.MANDATORY)
+	protected CoreService coreService;
+
 	@Activate
 	protected void activate() {
+
+		appId = coreService.registerApplication("org.onosproject.TockenBucket",
+				() -> log.info("Periscope down."));
 		log.info("Activada aplicacion diffserv");
 
 		//Vemos las colas que tiene el router   
@@ -72,63 +92,89 @@ public class TockenBucket{
 				if(d.is(QueueConfigBehaviour.class)){ 
 					if(d.id().toString().startsWith("ovsdb:")) {
 						QueueConfigBehaviour queueConfig = d.as(QueueConfigBehaviour.class); 
-				        QosConfigBehaviour qosConfig = d.as(QosConfigBehaviour.class);
-				        PortConfigBehaviour portConfig = d.as(PortConfigBehaviour.class);
-						
-						
-						Long maxRate = 100L;
-						Long minRate = 50L;
-						String name = "cola1";
+						QosConfigBehaviour qosConfig = d.as(QosConfigBehaviour.class);
+						PortConfigBehaviour portConfig = d.as(PortConfigBehaviour.class);
+
+
+					//	Long maxRate = 10000L;
+						Long minRate = 5000L;
+						String name = "123";
 
 						QueueDescription queueDesc = DefaultQueueDescription.builder()
 								.queueId(QueueId.queueId(name))
-								.maxRate(Bandwidth.bps(maxRate))
+					//			.maxRate(Bandwidth.bps(maxRate))
 								.minRate(Bandwidth.bps(minRate))
-								.burst(20L)
 								.build();
+
 
 						queueConfig.addQueue(queueDesc);
 
 						log.info("Cola creada");
-			    
-				        PortDescription portDesc = DefaultPortDescription.builder()
-				        		.isEnabled(true)
-				        		.withPortNumber(PortNumber.portNumber(2))
-				        				.build();
 
-				        
-				        Map<Long, QueueDescription> queues = new HashMap<>();
-				        queues.put(0L, queueDesc);
-				        
-				        
-				        QosDescription qosDesc = DefaultQosDescription.builder()
-				                .qosId(QosId.qosId("qos1"))
-				                .type(QosDescription.Type.HTB)
-				                .maxRate(Bandwidth.bps(Long.valueOf("100000")))
-				                .cbs(5000L)
-				                .cir(400L) //paquetes IP/s
-				                .queues(queues)
-				                .build();
-				        
-				        
-				        
-			            queueConfig.addQueue(queueDesc);
-			            qosConfig.addQoS(qosDesc);
-			            portConfig.applyQoS(portDesc, qosDesc);
-				        
-				        
-				      
+						PortDescription portDesc = DefaultPortDescription.builder()
+								.isEnabled(true)
+								.withPortNumber(PortNumber.portNumber(2))
+								.build();
+
+
+						Map<Long, QueueDescription> queues = new HashMap<>();
+						queues.put(123L, queueDesc);
+
+
+						QosDescription qosDesc = DefaultQosDescription.builder()
+								.qosId(QosId.qosId("qos1"))
+								.type(QosDescription.Type.HTB)
+								.maxRate(Bandwidth.bps(Long.valueOf("10000")))
+							//	.cbs(80L)
+							//	.cir(5000L) //paquetes IP/s
+								
+								.queues(queues)
+								.build();
+
+						queueConfig.addQueue(queueDesc);
+						qosConfig.addQoS(qosDesc);
+			     		portConfig.applyQoS(portDesc, qosDesc);
+
+
+
 						//Mostramos las colas (ver si funciona el codigo)
 						Iterator<QueueDescription> it = queueConfig.getQueues().iterator();
 						while(it.hasNext()) {
 							log.error("Colas: "+it.next().toString());
 						}
 					}
-					else
+					else {
+						
 						log.warn("El id dispositivo no empieza por ovsdb:");
+	
+						//Creamos regla que haga que el trafico vaya por la cola		        
+						TrafficSelector selector = DefaultTrafficSelector.builder()
+								.matchInPort(PortNumber.portNumber(2L))
+								.build();
+						TrafficTreatment drop = DefaultTrafficTreatment.builder()
+								.setQueue(123L)
+							//	.setOutput(PortNumber.NORMAL)
+								.build();
+
+						//Creamos la regla que limita el trafico para la MAC de origen
+						FlowRule rule1 = DefaultFlowRule.builder()
+								.fromApp(appId)
+								.forDevice(d.id())
+								.makePermanent()
+								.withSelector(selector)
+								.withPriority(129)
+								.withTreatment(drop)
+								.build();
+
+
+						flowRuleService.applyFlowRules(rule1);
+					}
+					
 				} 
 				else { 
 					log.warn("Device {} does not support QueueConfigBehavior", d.id()); 
+					
+
 				} 
 			} 
 		}
@@ -138,6 +184,7 @@ public class TockenBucket{
 	@Deactivate
 	protected void deactivate() {
 		log.info("Desactivada aplicacion diffserv");
+		flowRuleService.removeFlowRulesById(appId);		
 	}
 }
 
