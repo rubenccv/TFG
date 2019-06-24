@@ -85,7 +85,10 @@ public class QoSAddCommand extends AbstractShellCommand {
                 .build();
 
         
-        PortDescription portDesc = DefaultPortDescription.builder().isEnabled(true).withPortNumber(PortNumber.portNumber(1, portName)).build();
+        PortDescription portDesc = DefaultPortDescription.builder()
+        		.isEnabled(true)
+        		.withPortNumber(PortNumber.portNumber(1, portName))
+        		.build();
 
         
         Map<Long, QueueDescription> queues = new HashMap<>();

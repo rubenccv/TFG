@@ -19,12 +19,15 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Set;
 
 import org.onlab.util.Bandwidth;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.core.CoreService;
 import org.onosproject.net.Device;
 import org.onosproject.net.PortNumber;
+import org.onosproject.net.behaviour.BridgeConfig;
+import org.onosproject.net.behaviour.BridgeDescription;
 import org.onosproject.net.behaviour.DefaultQosDescription;
 import org.onosproject.net.behaviour.DefaultQueueDescription;
 import org.onosproject.net.behaviour.PortConfigBehaviour;
@@ -89,12 +92,12 @@ public class TockenBucket{
 				log.info("No hay dispositivos conectados a la red");
 			}
 			else {
-				if(d.is(QueueConfigBehaviour.class)){ 
+				if(d.is(QueueConfigBehaviour.class) && d.is(PortConfigBehaviour.class)){ 
 					if(d.id().toString().startsWith("ovsdb:")) {
 						QueueConfigBehaviour queueConfig = d.as(QueueConfigBehaviour.class); 
 						QosConfigBehaviour qosConfig = d.as(QosConfigBehaviour.class);
 						PortConfigBehaviour portConfig = d.as(PortConfigBehaviour.class);
-
+						
 
 					//	Long maxRate = 10000L;
 						Long minRate = 5000L;
@@ -111,11 +114,12 @@ public class TockenBucket{
 
 						log.info("Cola creada");
 
-						PortDescription portDesc = DefaultPortDescription.builder()
+					PortDescription portDesc = DefaultPortDescription.builder()
 								.isEnabled(true)
-								.withPortNumber(PortNumber.portNumber(2))
+								.withPortNumber(PortNumber.portNumber(2,"eth2"))
 								.build();
 
+						log.warn("Puerto: " +portDesc.toString());
 
 						Map<Long, QueueDescription> queues = new HashMap<>();
 						queues.put(123L, queueDesc);
@@ -126,15 +130,13 @@ public class TockenBucket{
 								.type(QosDescription.Type.HTB)
 								.maxRate(Bandwidth.bps(Long.valueOf("10000")))
 							//	.cbs(80L)
-							//	.cir(5000L) //paquetes IP/s
-								
+							//	.cir(5000L) //paquetes IP/s							
 								.queues(queues)
 								.build();
 
-						queueConfig.addQueue(queueDesc);
+					//	queueConfig.addQueue(queueDesc);
 						qosConfig.addQoS(qosDesc);
 			     		portConfig.applyQoS(portDesc, qosDesc);
-
 
 
 						//Mostramos las colas (ver si funciona el codigo)
@@ -153,7 +155,7 @@ public class TockenBucket{
 								.build();
 						TrafficTreatment drop = DefaultTrafficTreatment.builder()
 								.setQueue(123L)
-							//	.setOutput(PortNumber.NORMAL)
+								.setOutput(PortNumber.NORMAL)
 								.build();
 
 						//Creamos la regla que limita el trafico para la MAC de origen
@@ -169,12 +171,10 @@ public class TockenBucket{
 
 						flowRuleService.applyFlowRules(rule1);
 					}
-					
 				} 
 				else { 
 					log.warn("Device {} does not support QueueConfigBehavior", d.id()); 
 					
-
 				} 
 			} 
 		}

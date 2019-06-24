@@ -72,7 +72,9 @@ public class QoSDelCommand extends AbstractShellCommand {
 
       //  PortDescription portDesc = new DefaultPortDescription(PortNumber.portNumber(1, portName), true);
 
-        PortDescription portDesc = DefaultPortDescription.builder().isEnabled(true).withPortNumber(PortNumber.portNumber(1, portName)).build();
+        PortDescription portDesc = DefaultPortDescription.builder()
+        		.isEnabled(true)
+        		.withPortNumber(PortNumber.portNumber(1, portName)).build();
 
         QosDescription qosDesc = DefaultQosDescription.builder()
                 .qosId(QosId.qosId(id))
