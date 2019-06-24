@@ -77,6 +77,9 @@ public class TockenBucket{
 	@Reference(cardinality = ReferenceCardinality.MANDATORY)
 	protected CoreService coreService;
 
+	String name = "123";
+
+
 	@Activate
 	protected void activate() {
 
@@ -97,47 +100,65 @@ public class TockenBucket{
 						QueueConfigBehaviour queueConfig = d.as(QueueConfigBehaviour.class); 
 						QosConfigBehaviour qosConfig = d.as(QosConfigBehaviour.class);
 						PortConfigBehaviour portConfig = d.as(PortConfigBehaviour.class);
-						
 
-					//	Long maxRate = 10000L;
+
+						//	Long maxRate = 10000L;
 						Long minRate = 5000L;
-						String name = "123";
-
+						Long minRate2 = 12000L;
+						Long minRate3 = 19000L;
+						
 						QueueDescription queueDesc = DefaultQueueDescription.builder()
 								.queueId(QueueId.queueId(name))
-					//			.maxRate(Bandwidth.bps(maxRate))
-								.minRate(Bandwidth.bps(minRate))
+								//			.maxRate(Bandwidth.bps(maxRate))
+							.minRate(Bandwidth.bps(minRate))
 								.build();
 
 
-						queueConfig.addQueue(queueDesc);
+						QueueDescription queueDesc2 = DefaultQueueDescription.builder()
+								.queueId(QueueId.queueId("234"))
+								//			.maxRate(Bandwidth.bps(maxRate))
+							.minRate(Bandwidth.bps(minRate2))
+								.build();
+
+						QueueDescription queueDesc3 = DefaultQueueDescription.builder()
+								.queueId(QueueId.queueId("345"))
+								//			.maxRate(Bandwidth.bps(maxRate))
+							.minRate(Bandwidth.bps(minRate3))
+								.build();
+
 
 						log.info("Cola creada");
 
-					PortDescription portDesc = DefaultPortDescription.builder()
+						PortDescription portDesc = DefaultPortDescription.builder()
 								.isEnabled(true)
 								.withPortNumber(PortNumber.portNumber(2,"eth2"))
 								.build();
 
-						log.warn("Puerto: " +portDesc.toString());
-
+						
 						Map<Long, QueueDescription> queues = new HashMap<>();
 						queues.put(123L, queueDesc);
 
+						queues.put(234L, queueDesc2);
+						queues.put(345L, queueDesc2);
+						
 
 						QosDescription qosDesc = DefaultQosDescription.builder()
 								.qosId(QosId.qosId("qos1"))
 								.type(QosDescription.Type.HTB)
 								.maxRate(Bandwidth.bps(Long.valueOf("10000")))
-							//	.cbs(80L)
-							//	.cir(5000L) //paquetes IP/s							
+								//.cbs(80L)
+								//.cir(5000L) //paquetes IP/s							
 								.queues(queues)
 								.build();
 
-					//	queueConfig.addQueue(queueDesc);
+						
+						queueConfig.addQueue(queueDesc);
+						queueConfig.addQueue(queueDesc2);
+						queueConfig.addQueue(queueDesc3);
+						
+						
 						qosConfig.addQoS(qosDesc);
-			     		portConfig.applyQoS(portDesc, qosDesc);
-
+						portConfig.applyQoS(portDesc, qosDesc);
 
 						//Mostramos las colas (ver si funciona el codigo)
 						Iterator<QueueDescription> it = queueConfig.getQueues().iterator();
@@ -146,9 +167,9 @@ public class TockenBucket{
 						}
 					}
 					else {
-						
+
 						log.warn("El id dispositivo no empieza por ovsdb:");
-	
+
 						//Creamos regla que haga que el trafico vaya por la cola		        
 						TrafficSelector selector = DefaultTrafficSelector.builder()
 								.matchInPort(PortNumber.portNumber(2L))
@@ -174,7 +195,7 @@ public class TockenBucket{
 				} 
 				else { 
 					log.warn("Device {} does not support QueueConfigBehavior", d.id()); 
-					
+
 				} 
 			} 
 		}
@@ -185,7 +206,49 @@ public class TockenBucket{
 	protected void deactivate() {
 		log.info("Desactivada aplicacion diffserv");
 		flowRuleService.removeFlowRulesById(appId);		
+
+		for(Device d: deviceService.getAvailableDevices()) {
+
+			if (d == null) {
+				log.error("isn't support config.");
+				return;
+			}
+			else {
+				if(d.is(QueueConfigBehaviour.class) && d.is(PortConfigBehaviour.class)){ 
+					if(d.id().toString().startsWith("ovsdb:")) {
+
+						QueueDescription queueDesc = DefaultQueueDescription.builder()
+								.queueId(QueueId.queueId(name))
+								.build();
+
+						
+			/*			QueueDescription queueDesc2 = DefaultQueueDescription.builder()
+								.queueId(QueueId.queueId("234"))
+								.build();*/
+						
+						
+						PortDescription portDesc = DefaultPortDescription.builder()
+								.isEnabled(true)
+								.withPortNumber(PortNumber.portNumber(2,"eth2"))
+								.build();
+
+						QosDescription qosDesc = DefaultQosDescription.builder()
+								.qosId(QosId.qosId("qosid"))
+								.type(QosDescription.Type.HTB)
+								.build();
+
+						QosConfigBehaviour qosConfig = d.as(QosConfigBehaviour.class);
+						PortConfigBehaviour portConfig = d.as(PortConfigBehaviour.class);
+
+						qosConfig.deleteQoS(qosDesc.qosId());
+
+						portConfig.removeQoS(portDesc.portNumber());
+					}
+				}
+			}
+		}
 	}
 }
+
 
 
