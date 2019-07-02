@@ -47,6 +47,9 @@ https://blog.sflow.com/2018/04/onos-traffic-analytics.html
 ✗ App para la creación dinámica de un árbol para tráfico multicast. Cuando un host quiera añadirse a un grupo multicast se envía un "join" IGMP (Internet Group Management Protocol), por lo que el switch puede detectar dicha notificación y crear una regla de OpenFlow que añada el puerto al que se conecta el host que realiza el "join" a la lista de puertos por los que realizar el multicast.
 
 
+✗ App para la creación de un cortafuegos (firewall) dinámico basado en patrones de tráfico. Por ejemplo, cuando se observe un host (dirección IP) que está enviando tráfico "sospechoso" de ser un ataque de denegación de servicio (DoS), se descartará todo el tráfico asociado.
+
+
 # ------------Memoria------------
 
 Anexo 1: Instalación de Eclipse
