@@ -50,6 +50,9 @@ https://blog.sflow.com/2018/04/onos-traffic-analytics.html
 ✗ App para la creación de un cortafuegos (firewall) dinámico basado en patrones de tráfico. Por ejemplo, cuando se observe un host (dirección IP) que está enviando tráfico "sospechoso" de ser un ataque de denegación de servicio (DoS), se descartará todo el tráfico asociado.
 
 
+✗ App para la aplicación de una lista de control de accesso (ACL), es decir, permitir el switching normal entre hosts autorizados, pero descartar todo el tráfico de host no autorizados. El nivel de autorización se hará a nivel de dirección MAC (L2).
+
+
 # ------------Memoria------------
 
 Anexo 1: Instalación de Eclipse
