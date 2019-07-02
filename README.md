@@ -21,6 +21,7 @@
 ✓ En la App 3 crear un comando que permita añadir y eliminar correspondencias MAC-VLAN, de manera que no existan únicamente las correspondencias estáticas programadas en el código fuente.
 
 ✓ Crear una app que permita bloquear el tráfico DHCP (DHCPOFFER) procedente de puertos que no sea al que se conecta el router principal. Para ello se crea una regla en el dispositivo OpenFlow (Open vSwitch) que mande el tráfico DHCP al controlador. En el controlador se mira si el tráfico es DHCP y si es un DHCPOFFER. Si lo es, y el puerto por el que ha llegado es el que conecta con el router, se permite enviar ese paquete. En caso contrario, se bloquea el envío de dicho paquete para evitar que un host malintencionado desconfigure los hosts de la red.
+
 -------------------------------------------------------------------------------------------------
 
 ✗ Balancear tráfico de manera que no se cree una regla (FlowRule) para un solo posible camino, sino diferentes rutas alternativas
@@ -43,7 +44,9 @@ https://blog.sflow.com/2018/04/onos-traffic-analytics.html
 ✗ Emplear el lenguaje P4 (https://p4.org/) para definir un protocolo experimental y poderlo meter en los campos del matching (selector Pi) para crear una regla al estilo de OpenFlow
 
 
+✗ App para la creación dinámica de un árbol para tráfico multicast. Cuando un host quiera añadirse a un grupo multicast se envía un "join" IGMP (Internet Group Management Protocol), por lo que el switch puede detectar dicha notificación y crear una regla de OpenFlow que añada el puerto al que se conecta el host que realiza el "join" a la lista de puertos por los que realizar el multicast.
 
---------------------------------Memoria---------------------------------------------------------
+
+--------------------------------Memoria--------------------------------
 Anexo 1: Instalación de Eclipse
 Anexo 2: Introducción a la programación por objetos 
