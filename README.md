@@ -52,6 +52,8 @@ https://blog.sflow.com/2018/04/onos-traffic-analytics.html
 
 ✗ App para la aplicación de una lista de control de accesso (ACL), es decir, permitir el switching normal entre hosts autorizados, pero descartar todo el tráfico de host no autorizados. El nivel de autorización se hará a nivel de dirección MAC (L2).
 
+Realizar una matriz de tráfico a partir de los bytes que pasan por cada enlace
+
 
 # ------------Memoria------------
 
