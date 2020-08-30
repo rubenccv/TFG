@@ -13,26 +13,36 @@
   ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
   ~ See the License for the specific language governing permissions and
   ~ limitations under the License.
-  -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  --><project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>org.onosproject</groupId>
-    <artifactId>diffServ</artifactId>
-    <version>1.0-SNAPSHOT</version>
+   <parent>
+        <groupId>org.onosproject</groupId>
+        <artifactId>onos-dependencies</artifactId>
+        <version>2.4.0</version>
+    </parent>
+
+    <artifactId>diffserv</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
     <packaging>bundle</packaging>
 
     <description>ONOS OSGi bundle archetype</description>
     <url>http://onosproject.org</url>
 
     <properties>
+ 	    <maven.compiler.release>11</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <onos.version>2.1.0</onos.version>
+        <api.version>1.0</api.version>  
         <onos.app.name>org.onosproject.diffserv</onos.app.name>
         <onos.app.title>diffserv</onos.app.title>
         <onos.app.origin>UVA</onos.app.origin>
         <onos.app.category>default</onos.app.category>
-        <onos.app.url>http://onosproject.org</onos.app.url>
+        <api.description>QoS REST API</api.description>    
+        <web.context>/onos/v1/diffserv</web.context>
+        <api.title>QoS REST API</api.title> 
+   <!--      <onos.app.url>http://192.168.122.37</onos.app.url>  -->
+        <api.package>org.onosproject.diffserv.rest</api.package>      
         <onos.app.readme>ONOS OSGi bundle archetype.</onos.app.readme>
     </properties>
 
@@ -42,7 +52,6 @@
             <artifactId>onos-api</artifactId>
             <version>${onos.version}</version>
         </dependency>
-
         <dependency>
             <groupId>org.onosproject</groupId>
             <artifactId>onlab-osgi</artifactId>
@@ -54,32 +63,28 @@
             <artifactId>onlab-misc</artifactId>
             <version>${onos.version}</version>
         </dependency>
-
+        
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
-            <version>1.7.25</version>
             <scope>provided</scope>
         </dependency>
 
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>22.0</version>
             <scope>provided</scope>
         </dependency>
 
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>2.9.5</version>
             <scope>provided</scope>
         </dependency>
 
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>4.12</version>
             <scope>test</scope>
         </dependency>
 
@@ -94,34 +99,84 @@
         <dependency>
             <groupId>org.osgi</groupId>
             <artifactId>org.osgi.service.component</artifactId>
-            <version>1.4.0</version>
             <scope>provided</scope>
         </dependency>
 
         <dependency>
             <groupId>org.osgi</groupId>
             <artifactId>org.osgi.service.component.annotations</artifactId>
-            <version>1.4.0</version>
             <scope>provided</scope>
-        </dependency>    </dependencies>
+        </dependency>
+
+      <dependency>
+      	<groupId>javax.ws.rs</groupId>
+      	<artifactId>javax.ws.rs-api</artifactId>
+      	<scope>provided</scope>
+       </dependency>
+
+        <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-annotations</artifactId>
+      <scope>provided</scope>
+    </dependency>
+
+        <dependency>
+      <groupId>org.onosproject</groupId>
+      <artifactId>onos-cli</artifactId>
+      <version>${onos.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+        <dependency>
+      <groupId>org.glassfish.jersey.containers</groupId>
+      <artifactId>jersey-container-servlet</artifactId>
+      <scope>provided</scope>
+    </dependency>
+
+        <dependency>
+      <groupId>org.onosproject</groupId>
+      <artifactId>onlab-rest</artifactId>
+      <version>${onos.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+        <dependency>
+      <groupId>org.onosproject</groupId>
+      <artifactId>onos-rest</artifactId>
+      <version>${onos.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+        <dependency>
+      <groupId>org.apache.karaf.shell</groupId>
+      <artifactId>org.apache.karaf.shell.console</artifactId>
+      <scope>provided</scope>
+    </dependency>    
+</dependencies>
 
     <build>
         <plugins>
             <plugin>
                 <groupId>org.apache.felix</groupId>
                 <artifactId>maven-bundle-plugin</artifactId>
-                <version>3.5.0</version>
                 <extensions>true</extensions>
+                <configuration>
+          <instructions>
+          <_wab>src/main/webapp/</_wab>
+          <Include-Resource>WEB-INF/classes/apidoc/swagger.json=target/swagger.json,
+                            {maven-resources}</Include-Resource>
+     <!--        <Import-Package>*,org.glassfish.jersey.servlet</Import-Package>
+            <Web-ContextPath>${web.context}</Web-ContextPath>  --> 
+          </instructions>
+        </configuration>
             </plugin>
-            <plugin>
+             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.8.0</version>
                 <configuration>
-                    <source>1.8</source>
-                    <target>1.8</target>
+                    <release>11</release>
                 </configuration>
-            </plugin>
+            </plugin>  
             <plugin>
                 <groupId>org.apache.felix</groupId>
                 <artifactId>maven-scr-plugin</artifactId>
@@ -136,7 +191,6 @@
             <plugin>
                 <groupId>org.onosproject</groupId>
                 <artifactId>onos-maven-plugin</artifactId>
-                <version>2.1</version>
                 <executions>
                     <execution>
                         <id>cfg</id>
@@ -161,6 +215,9 @@
                     </execution>
                 </executions>
             </plugin>
+           <plugin>
+       <artifactId>maven-checkstyle-plugin</artifactId>  
+      </plugin>
         </plugins>
     </build>
 

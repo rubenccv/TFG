@@ -153,8 +153,8 @@ public class VlanbyMac{
 			flowRuleService.applyFlowRules(rule);
 		}
 
-		
-		
+
+
 		//Asignamos las VLAN al hashmap con las diferentes mac que tendremos en nuestra red
 		macVlanMap.put(MacAddress.valueOf("00:00:00:00:00:01"),VlanId.vlanId((short)1));
 		macVlanMap.put(MacAddress.valueOf("00:00:00:00:00:02"),VlanId.vlanId((short)1));
@@ -208,58 +208,124 @@ public class VlanbyMac{
 
 				//Entramos en este if en la primera iteracion unicamente
 				if(ruleBorrar==null)
-					log.error("No se ha encontrado regla para borrar");
+					log.info("No se ha encontrado regla para borrar");
 
-				//Nota: No es necesario crear la regla de la tabla 0 dado que la tenemos creada en el else de abajo ya.
-				TrafficSelector selector = DefaultTrafficSelector.builder()
-						.matchEthDst(MacAddress.BROADCAST)
-						.matchVlanId(VlanHost)
-						.build();		
-				TrafficTreatment.Builder addVlan1 = DefaultTrafficTreatment.builder();
+				if(VlanHost == VlanId.NONE) {
+					Set<VlanId>vlans = vlanRuleMap.keySet();
+
+					for(VlanId v:vlans) {						
+						ruleBorrar = vlanRuleMap.get(v);
+						if(ruleBorrar!=null) { //Si hay una regla previa y los hosts cambian la regla hay que borrarla
+							flowRuleService.removeFlowRules(ruleBorrar);
+						}
+						//Nota: No es necesario crear la regla de la tabla 0 dado que la tenemos creada en el else de abajo ya.
+						TrafficSelector selector = DefaultTrafficSelector.builder()
+								.matchEthDst(MacAddress.BROADCAST)
+								.matchVlanId(v)
+								.build();		
+						TrafficTreatment.Builder addVlan1 = DefaultTrafficTreatment.builder();
 
 
-				Set<MacAddress>macVlan0 = getKeys(macVlanMap,VlanId.NONE);
-				for(MacAddress mac: macVlan0) {
+						Set<MacAddress>macVlan0 = getKeys(macVlanMap,VlanId.NONE);
+						for(MacAddress mac: macVlan0) {
 
-					Set<Host> hiterator=hostService.getHostsByMac(mac);
+							Set<Host> hiterator=hostService.getHostsByMac(mac);
 
-					if(hiterator!=null && hiterator.iterator().hasNext())
-					{
-						Host h=hiterator.iterator().next();
-						addVlan1=addVlan1.setOutput(h.location().port());
+							if(hiterator!=null && hiterator.iterator().hasNext())
+							{
+								Host h=hiterator.iterator().next();
+								addVlan1=addVlan1.setOutput(h.location().port());
+							}
+						}
+						addVlan1=addVlan1.popVlan();
+
+						Set<MacAddress> macVlan = getKeys(macVlanMap,v);
+						for(MacAddress mac: macVlan) {
+
+							Set<Host> hiterator=hostService.getHostsByMac(mac);
+
+							if(hiterator!=null && hiterator.iterator().hasNext())
+							{
+								Host h=hiterator.iterator().next();
+								addVlan1=addVlan1.setOutput(h.location().port());
+							}
+						}
+
+						TrafficTreatment trtr=addVlan1.transition(2).build();
+
+						FlowRule rule = DefaultFlowRule.builder()
+								.fromApp(appId)
+								.forTable(IndexTableId.of(1))
+								.forDevice(event.subject().location().deviceId())
+								.makePermanent()
+								.withPriority(priority)
+								.withSelector(selector)
+								.withTreatment(trtr)
+								.build();
+						
+					
+						flowRuleService.applyFlowRules(rule);
+						vlanRuleMap.put(v,rule);
 					}
+					
 				}
-				addVlan1=addVlan1.popVlan();
 
-				Set<MacAddress> macVlan = getKeys(macVlanMap,VlanHost);
-				for(MacAddress mac: macVlan) {
 
-					Set<Host> hiterator=hostService.getHostsByMac(mac);
+				else {
+					//Nota: No es necesario crear la regla de la tabla 0 dado que la tenemos creada en el else de abajo ya.
+					TrafficSelector selector = DefaultTrafficSelector.builder()
+							.matchEthDst(MacAddress.BROADCAST)
+							.matchVlanId(VlanHost)
+							.build();		
+					TrafficTreatment.Builder addVlan1 = DefaultTrafficTreatment.builder();
 
-					if(hiterator!=null && hiterator.iterator().hasNext())
-					{
-						Host h=hiterator.iterator().next();
-						addVlan1=addVlan1.setOutput(h.location().port());
+
+					Set<MacAddress>macVlan0 = getKeys(macVlanMap,VlanId.NONE);
+					for(MacAddress mac: macVlan0) {
+
+						Set<Host> hiterator=hostService.getHostsByMac(mac);
+
+						if(hiterator!=null && hiterator.iterator().hasNext())
+						{
+							Host h=hiterator.iterator().next();
+							addVlan1=addVlan1.setOutput(h.location().port());
+						}
 					}
+					addVlan1=addVlan1.popVlan();
+
+					Set<MacAddress> macVlan = getKeys(macVlanMap,VlanHost);
+					for(MacAddress mac: macVlan) {
+
+						Set<Host> hiterator=hostService.getHostsByMac(mac);
+
+						if(hiterator!=null && hiterator.iterator().hasNext())
+						{
+							Host h=hiterator.iterator().next();
+							addVlan1=addVlan1.setOutput(h.location().port());
+						}
+					}
+
+					TrafficTreatment trtr=addVlan1.transition(2).build();
+
+					FlowRule rule = DefaultFlowRule.builder()
+							.fromApp(appId)
+							.forTable(IndexTableId.of(1))
+							.forDevice(event.subject().location().deviceId())
+							.makePermanent()
+							.withPriority(priority)
+							.withSelector(selector)
+							.withTreatment(trtr)
+							.build();
+					
+					if(ruleBorrar!=null) { //Si hay una regla previa y los hosts cambian la regla hay que borrarla
+						flowRuleService.removeFlowRules(ruleBorrar);
+					}
+					flowRuleService.applyFlowRules(rule);
+					vlanRuleMap.put(VlanHost,rule);
+
+
 				}
 
-				TrafficTreatment trtr=addVlan1.transition(2).build();
-
-				FlowRule rule = DefaultFlowRule.builder()
-						.fromApp(appId)
-						.forTable(IndexTableId.of(1))
-						.forDevice(event.subject().location().deviceId())
-						.makePermanent()
-						.withPriority(priority)
-						.withSelector(selector)
-						.withTreatment(trtr)
-						.build();
-
-				if(ruleBorrar!=null) { //Si hay una regla previa y los hosts cambian la regla hay que borrarla
-					flowRuleService.removeFlowRules(ruleBorrar);
-				}
-				flowRuleService.applyFlowRules(rule);
-				vlanRuleMap.put(VlanHost,rule);
 
 				log.warn("Regla broadcast modificada");
 				//Una vez visto el trafico broadcast vemos el resto del trafico
@@ -275,7 +341,6 @@ public class VlanbyMac{
 					TrafficTreatment addVlan = DefaultTrafficTreatment.builder()
 							.transition(1)
 							.build();
-
 
 					FlowRule rule1 = DefaultFlowRule.builder()
 							.fromApp(appId)
@@ -364,6 +429,12 @@ public class VlanbyMac{
 			else if(event.type() == HostEvent.Type.HOST_REMOVED) {
 				log.warn("Host desconectado");
 				FlowRule[] array = macRuleMap.get(event.subject().mac());
+				Set<Host> hostMismaMac = hostService.getHostsByMac(event.subject().mac());
+				
+				if(hostMismaMac.iterator().hasNext()) {
+					return;
+				}
+				
 				if(array!=null) {
 					flowRuleService.removeFlowRules(array);
 				}
@@ -432,6 +503,7 @@ public class VlanbyMac{
 				vlanRuleMap.put(VlanHost,rule);
 			}
 		}
+			
 	} //Cierre internal host listener
 
 	public <K, V> Set<K> getKeys(Map<K, V> map, V value) {
@@ -452,17 +524,15 @@ public class VlanbyMac{
 		macVlanMap.remove(mac, vlan);
 	}
 
-	
+
 	public void printAddVlanMac(MacAddress mac, VlanId vlan) {
-		System.out.println(" MacAddress-------------Vlan");
+		System.out.println(" MacAddress---------------Vlan");
 		if (mac != null && vlan!=null) {
 			System.out.println("" + mac.toString() + "           " + vlan.toShort());
 		} 
 	}
 	public void showVlanMac() {
 		System.out.println("macVlanMap es: "+macVlanMap.toString());
-		log.info("macVlanMap es: {}",macVlanMap.toString());
-
 	}
 
 }//Cierre del appComponent

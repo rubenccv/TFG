@@ -114,7 +114,7 @@ public class AppComponent {
     private int TIME_BAN = TIME_BAN_DEFAULT;
 
     private static final int PRIORITY = 128;
-    private static final int DROP_PRIORITY = 129;
+    private static final int DROP_PRIORITY = 41000;
 
 
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
@@ -238,6 +238,8 @@ public class AppComponent {
 
     //Creamos una regla temporal en el openVswitch que descarte los paquetes ICMP entre src y dst.
     private void banPings(DeviceId deviceId, MacAddress src, MacAddress dst) {
+        log.error("Creada regla");
+    	
         TrafficSelector selector = DefaultTrafficSelector.builder()
                 .matchEthSrc(src).matchEthDst(dst).matchEthType(Ethernet.TYPE_IPV4).matchIPProtocol(IPv4.PROTOCOL_ICMP).matchIcmpType(ICMP.TYPE_ECHO_REQUEST).build();
         TrafficTreatment drop = DefaultTrafficTreatment.builder()
@@ -251,6 +253,8 @@ public class AppComponent {
                 .withPriority(DROP_PRIORITY)
                 .makeTemporary(TIME_BAN)
                 .add());
+        
+
     }
 
 

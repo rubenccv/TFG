@@ -12,6 +12,19 @@ ovs-vsctl set-manager ptcp:6640
 ovs-vsctl set-controller br0 tcp:192.168.122.37:6633
 
 
+#Comandos para el router normal
+
+ifconfig br-lan down
+ip link add link eth0 name eth0.1 type vlan id 1
+ip link add link eth0 name eth0.2 type vlan id 2
+ifconfig eth0.1 192.168.0.254 up
+ifconfig eth0.2 192.168.1.254 up
+ifconfig eth0 hw ether 00:00:00:00:00:05 
+
+cat /etc/config/firewall ACCEPT FORWARD
+/etc/init.d/firewall reload
+
+
 
 #Cambiamos los drivers del ovsdb:IP
 
@@ -28,5 +41,55 @@ ovs-vsctl list qos
 ovs-vsctl -- --all destroy QoS -- --all destroy Queue
 
 
-ovs-vsctl set port eth2 qos=@newqos -- --id=@newqos create qos type=linux-htb other-config:max-rate=10000 queues:1=@newqueue1 queues:2=@newqueue2
- -- --id=@newqueue1 create queue other-config:min-rate=5000 -- --id=@newqueue2 create queue other-config:min-rate=5000
+ovs-vsctl set port eth2 qos=@newqos -- --id=@newqos create qos type=linux-htb other-config:max-rate=15000000 queues:0=@newqueue1 queues:1=@newqueue2 -- --id=@newqueue1 create queue other-config:min-rate=3000000 other-config:max-rate=4000000 other-config:burst=20000 -- --id=@newqueue2 create queue other-config:min-rate=2000000 other-config:max-rate=2500000 other-config:burst=22000 
+
+
+
+ovs-ofctl add-flow br0 in_port=2,ip_proto=6,tcp_dst=1230,actions=set_queue:1
+ovs-ofctl add-flow br0 in_port=1,actions=normal
+
+#2 colas
+ovs-vsctl set port eth2 qos=@newqos -- --id=@newqos create qos type=linux-htb queues:1=@newqueue1 queues:2=@newqueue2 -- --id=@newqueue1 create queue other-config:max-rate=5000 -- --id=@newqueue2 create queue other-config:max-rate=12000
+
+
+
+
+
+
+
+
+
+
+
+
+#1 cola. Funciona cuando mandas trafico de la Alpine-2 a la Alpine-1.
+
+#set port es el puerto en el que creamos la cola, es decir, el puerto de salida.
+ovs-vsctl set port eth2 qos=@newqos -- --id=@newqos create qos type=linux-htb queues:1=@newqueue1 -- --id=@newqueue1 create queue other-config:max-rate=5000
+
+#in_port es el puerto de entrada, es decir, cuando el trafico entre por ese puerto
+ovs-ofctl add-flow br0 in_port=1,actions=set_queue:1,normal
+
+
+
+#traceo de paquete
+ovs-appctl ofproto/trace br0 in_port=1
+
+
+#enlaces interesantes HTB y QoS
+http://docs.openvswitch.org/en/latest/faq/qos/
+http://docs.openvswitch.org/en/latest/topics/tracing/
+https://wiki.mikrotik.com/wiki/Manual:HTB
+http://luxik.cdi.cz/~devik/qos/htb/manual/userg.htm
+http://luxik.cdi.cz/~devik/qos/htb/manual/theory.htm
+http://luxik.cdi.cz/~devik/qos/htb/
+https://tldp.org/HOWTO/Traffic-Control-tcng-HTB-HOWTO/intro.html
+
+
+
+
+
+
+
+
+

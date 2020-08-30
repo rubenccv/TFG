@@ -337,11 +337,11 @@ public class ReactiveForwarding {
 						if(traffic!=null)
 							bitsPorSegundo = bitsPorSegundo + (traffic.bytesSent()*8)/temporizadorTarea;        		
 						else
-							log.error("Unable to read portStats");
+							log.info("Unable to read portStats");
 
 
 					}//Cierre del for ports
-					log.error("Bits: "+bitsPorSegundo);
+					log.info("Bits: "+bitsPorSegundo);
 
 					//Como la parte de arriba esta en un bucle no queda otra que volver a crear el GroupBucket
 
@@ -744,8 +744,6 @@ public class ReactiveForwarding {
 	/**Metodo modificado*/
 	private void packetOut(PacketContext context, PortNumber portNumber, ReactiveForwardMetrics macMetrics) {
 		replyPacket(macMetrics);
-		
-		
         context.treatmentBuilder().setOutput(portNumber);
         context.send();
 //		if(portNumber.equals(PortNumber.FLOOD)) {
